@@ -396,3 +396,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+/TwincleStarKnightsPlayer/deps/nlohmann
+/TwincleStarKnightsPlayer/deps/SFML-2.6.1
+/TwincleStarKnightsPlayer/deps/spine-cpp
