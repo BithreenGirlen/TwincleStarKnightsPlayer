@@ -132,12 +132,39 @@ namespace clst
 	void ReplaceEmoji(std::wstring& src)
 	{
 		constexpr wchar_t swzToBeReplaced[] = L"<emoji=heart04>";
-		for (;;)
+		for (size_t nRead = 0;;)
 		{
-			size_t nPos = src.find(swzToBeReplaced);
+			size_t nPos = src.find(swzToBeReplaced, nRead);
 			if (nPos == std::wstring::npos) break;
 			src.replace(nPos, sizeof(swzToBeReplaced) / sizeof(wchar_t) - 1, L"♡");
+			nRead = nPos + 1;
 		}
+	}
+
+	void EliminateTag(std::wstring& wstr)
+	{
+		std::wstring wstrResult;
+		wstrResult.reserve(wstr.size());
+		int iCount = 0;
+		for (const auto& c : wstr)
+		{
+			if (c == L'<')
+			{
+				++iCount;
+				continue;
+			}
+			else if (c == L'>')
+			{
+				--iCount;
+				continue;
+			}
+
+			if (iCount == 0)
+			{
+				wstrResult.push_back(c);
+			}
+		}
+		wstr = wstrResult;
 	}
 
 } /*namespace clst*/
@@ -182,6 +209,7 @@ bool clst::SearchAndLoadScenarioFile(const std::wstring& wstrAtlasFolderPath, st
 		if (storyDatum.wstrText.empty())continue;
 
 		ReplaceEmoji(storyDatum.wstrText);
+		EliminateTag(storyDatum.wstrText);
 		std::wstring wstrVoiceFilePath;
 
 		if (!storyDatum.wstrVoiceFileName.empty())
