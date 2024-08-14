@@ -18,7 +18,7 @@ public:
 	bool SetSpineFromMemory(const std::vector<std::string>& atlasData, const std::vector<std::string>& atlasPaths, const std::vector<std::string>& skelData, bool bIsBinary);
 	int Display(const wchar_t* pwzWindowName);
 private:
-	enum Size { kBaseWidth = 1280, kBaseHeight = 700 };
+	enum Size { kBaseWidth = 1280, kBaseHeight = 700, kMinAtlas };
 
 	CSfmlTextureLoader m_textureLoader;
 	std::vector<std::unique_ptr<spine::Atlas>> m_atlases;

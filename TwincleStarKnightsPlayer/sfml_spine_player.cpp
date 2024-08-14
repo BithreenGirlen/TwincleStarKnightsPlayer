@@ -273,38 +273,50 @@ void CSfmlSpinePlayer::WorkOutDefaultScale()
 {
 	if (m_skeletonData.empty())return;
 
-	if (m_skeletonData.at(0).get()->getWidth() > 0.f && m_skeletonData.at(0).get()->getHeight() > 0.f)
-	{
-		for (size_t i = 0; i < m_skeletonData.size(); ++i)
+	float fMaxSize = 0.f;
+	const auto CompareDimention = [this, &fMaxSize](float fWidth, float fHeight)
+		-> void
 		{
-			float fWidth = m_skeletonData.at(i).get()->getWidth();
-			float fHeight = m_skeletonData.at(i).get()->getHeight();
-			m_fBaseWindowSize.x = m_fBaseWindowSize.x > fWidth ? m_fBaseWindowSize.x : fWidth;
-			m_fBaseWindowSize.y = m_fBaseWindowSize.y > fHeight ? m_fBaseWindowSize.y : fHeight;
-		}
-	}
-	else
-	{
-		/*If skeletonData does not store size, deduce from the attachment of the default skin.*/
-		spine::Attachment* pAttachment = m_skeletonData.at(0).get()->getDefaultSkin()->getAttachments().next()._attachment;
-		if (pAttachment != nullptr)
-		{
-			if (pAttachment->getRTTI().isExactly(spine::RegionAttachment::rtti))
+			if (fWidth * fHeight > fMaxSize)
 			{
-				spine::RegionAttachment* pRegionAttachment = (spine::RegionAttachment*)pAttachment;
-				if (pRegionAttachment->getWidth() > 0.f && pRegionAttachment->getHeight() > 0.f)
-				{
-					m_fBaseWindowSize.x = pRegionAttachment->getWidth() * pRegionAttachment->getScaleX();
-					m_fBaseWindowSize.y = pRegionAttachment->getHeight() * pRegionAttachment->getScaleY();
-				}
+				m_fBaseWindowSize.x = fWidth;
+				m_fBaseWindowSize.y = fHeight;
+				fMaxSize = fWidth * fHeight;
 			}
-			else if (pAttachment->getRTTI().isExactly(spine::MeshAttachment::rtti))
+		};
+
+	for (size_t i = 0; i < m_skeletonData.size(); ++i)
+	{
+		if (m_skeletonData.at(i).get()->getWidth() > 0.f && m_skeletonData.at(i).get()->getHeight() > 0.f)
+		{
+			CompareDimention(m_skeletonData.at(i).get()->getWidth(), m_skeletonData.at(i).get()->getHeight());
+		}
+		else
+		{
+			/*If skeletonData does not store size, deduce from the attachment of the default skin.*/
+			spine::Attachment* pAttachment = m_skeletonData.at(i).get()->getDefaultSkin()->getAttachments().next()._attachment;
+			if (pAttachment != nullptr)
 			{
-				spine::MeshAttachment* pMeshAttachment = (spine::MeshAttachment*)pAttachment;
-				if (pMeshAttachment->getWidth() > 0.f && pMeshAttachment->getHeight() > 0.f)
+				if (pAttachment->getRTTI().isExactly(spine::RegionAttachment::rtti))
 				{
-					m_fBaseWindowSize.x = pMeshAttachment->getWidth() * 2.f;
-					m_fBaseWindowSize.y = pMeshAttachment->getHeight() * 2.f;
+					spine::RegionAttachment* pRegionAttachment = (spine::RegionAttachment*)pAttachment;
+					if (pRegionAttachment->getWidth() > 0.f && pRegionAttachment->getHeight() > 0.f)
+					{
+						CompareDimention
+						(
+							pRegionAttachment->getWidth() * pRegionAttachment->getScaleX(),
+							pRegionAttachment->getHeight() * pRegionAttachment->getScaleY()
+						);
+					}
+				}
+				else if (pAttachment->getRTTI().isExactly(spine::MeshAttachment::rtti))
+				{
+					spine::MeshAttachment* pMeshAttachment = (spine::MeshAttachment*)pAttachment;
+					if (pMeshAttachment->getWidth() > 0.f && pMeshAttachment->getHeight() > 0.f)
+					{
+						float fScale = pMeshAttachment->getWidth() > Size::kMinAtlas && pMeshAttachment->getHeight() > Size::kMinAtlas ? 1.f : 2.f;
+						CompareDimention(pMeshAttachment->getWidth() * fScale, pMeshAttachment->getHeight() * fScale);
+					}
 				}
 			}
 		}
@@ -552,7 +564,17 @@ void CSfmlSpinePlayer::UpdateMessageText()
 	if (m_textData.empty())return;
 
 	const adv::TextDatum& textDatum = m_textData.at(m_nTextIndex);
-	std::wstring wstr = textDatum.wstrText + L"\r\n " + std::to_wstring(m_nTextIndex + 1) + L"/" + std::to_wstring(m_textData.size());
+	std::wstring wstr = textDatum.wstrText;
+	if (!wstr.empty())
+	{
+		constexpr unsigned int kWodrdsInALine = 46;
+		if (wstr.size() > kWodrdsInALine)
+		{
+			wstr.insert(wstr.size() / 2, L"\n");
+		}
+		if (wstr.back() != L'\n') wstr += L"\n ";
+	}
+	wstr += std::to_wstring(m_nTextIndex + 1) + L"/" + std::to_wstring(m_textData.size());
 	m_msgText.setString(wstr);
 
 	if (!textDatum.wstrVoicePath.empty())
