@@ -43,6 +43,8 @@ private:
 	std::vector<std::string> m_skinNames;
 	size_t m_nSkinIndex = 0;
 
+	bool m_bDrawOrderReversed = false;
+
 	bool SetupDrawer();
 	void WorkOutDefaultScale();
 

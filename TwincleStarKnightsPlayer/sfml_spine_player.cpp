@@ -160,6 +160,9 @@ int CSfmlSpinePlayer::Display(const wchar_t* pwzWindowName)
 				case sf::Keyboard::Key::C:
 					SwitchTextColor();
 					break;
+				case sf::Keyboard::Key::R:
+					m_bDrawOrderReversed ^= true;
+					break;
 				case sf::Keyboard::Key::S:
 
 					break;
@@ -476,11 +479,23 @@ void CSfmlSpinePlayer::Redraw(float fDelta)
 	if (m_window.get() != nullptr)
 	{
 		m_window->clear();
-		for (size_t i = 0; i < m_drawables.size(); ++i)
+		if (!m_bDrawOrderReversed)
 		{
-			m_drawables.at(i).get()->Update(fDelta);
-			m_window->draw(*m_drawables.at(i).get(), sf::RenderStates(sf::BlendAlpha));
+			for (size_t i = 0; i < m_drawables.size(); ++i)
+			{
+				m_drawables.at(i).get()->Update(fDelta);
+				m_window->draw(*m_drawables.at(i).get(), sf::RenderStates(sf::BlendAlpha));
+			}
 		}
+		else
+		{
+			for (long long i = m_drawables.size() - 1; i >= 0; --i)
+			{
+				m_drawables.at(i).get()->Update(fDelta);
+				m_window->draw(*m_drawables.at(i).get(), sf::RenderStates(sf::BlendAlpha));
+			}
+		}
+
 		if (!m_bTextHidden)
 		{
 			m_window->draw(m_msgText);
