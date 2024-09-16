@@ -61,6 +61,7 @@ If the scenario file found, voice files and texts for the scene will be set up. 
 | A | Enable/disable premultiplied alpha. |
 | B | Prefer/ignore blend-mode specified by the slot. |
 | C | Switch text color between black and white. |
+| R | Draw multiple spines in normal/reversed order. |
 | T | Show/hide text. |
 | Esc | Close the application. |
 | Up | Move on to the next folder. |
@@ -69,11 +70,11 @@ If the scenario file found, voice files and texts for the scene will be set up. 
 | PageDown | Speed down the audio playback rate. |
 | Home | Reset the audio playback rate.|  
 
-- Some scene would be better rendered ignoring blend-mode specified by the slot.
+- Some scene would be better rendered ignoring blend-mode specified by slots.
 
 ## ガチャ演出
-To render gacha animation, it is necessary to configure z-buffer (or depth-buffer).  
-To be precise, arranging `-m0.png` at the front, and `-m1.png` at the back will work.
+To render gacha animation as intended, draw-order is important.  
+To be precise, the animation of `*_m1.png` should be first drawn and that of `*_m0.png` be drawn on that.
 
 <pre>
 tf_1083001
@@ -85,8 +86,7 @@ tf_1083001
 └ tf_1083001_m1.skel.txt
 </pre>
 
-Unfortunately, SFML does not support z-buffering, so I utilised other game engine for this purpose.  
-[DxlibSpineTest](https://github.com/BithreenGirlen/DxlibSpineTest) with z-buffer enabled would play the gacha animation.
+A feature to reverse draw-order (`R` key) is for this purpose.
 
 ## Build dependency
 - [JSON for Modern C++ v3.11.3](https://github.com/nlohmann/json/releases/tag/v3.11.3)
