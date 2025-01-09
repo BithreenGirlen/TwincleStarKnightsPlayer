@@ -1,0 +1,11 @@
+{
+    "extensions":
+    {
+        "atlas": "atlas.txt",
+        "skel": "skel.txt",
+        "voice": ".m4a",
+        "sceneText": ".json"
+    },
+    "binarySkel": true,
+    "fontPath": "C:\\Windows\\Fonts\\yumindb.ttf"
+}

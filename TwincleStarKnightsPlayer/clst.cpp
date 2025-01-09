@@ -1,4 +1,6 @@
 ﻿
+#include <Windows.h>
+
 #include "clst.h"
 
 #include "win_dialogue.h"
@@ -9,6 +11,60 @@
 
 namespace clst
 {
+	struct SPlayerSetting
+	{
+		std::wstring wstrAtlasExtension = L"atlas.txt";
+		std::wstring wstrSkelExtension = L"skel.txt";
+		std::wstring wstrVoiceExtension = L".m4a";;
+		std::wstring wstrSceneTextExtension = L".json";
+		std::string strFontFilePath = "C:\\Windows\\Fonts\\yumindb.ttf";
+
+		bool bSkelBinary = true;
+	};
+
+	static SPlayerSetting g_playerSetting;
+
+	static bool ReadSettingFile(SPlayerSetting& playerSetting)
+	{
+		std::wstring wstrFilePath = win_filesystem::GetCurrentProcessPath() + L"\\setting.txt";
+		std::string strFile = win_filesystem::LoadFileAsString(wstrFilePath.c_str());
+		if (strFile.empty())return false;
+
+		std::string strError;
+
+		try
+		{
+			nlohmann::json nlJson = nlohmann::json::parse(strFile);
+			std::string str;
+
+			nlohmann::json& jExtension = nlJson.at("extensions");
+
+			str = std::string(jExtension.at("atlas"));
+			playerSetting.wstrAtlasExtension = win_text::WidenUtf8(str);
+
+			str = std::string(jExtension.at("skel"));
+			playerSetting.wstrSkelExtension = win_text::WidenUtf8(str);
+
+			str = std::string(jExtension.at("voice"));
+			playerSetting.wstrVoiceExtension = win_text::WidenUtf8(str);
+
+			str = std::string(jExtension.at("sceneText"));
+			playerSetting.wstrSceneTextExtension = win_text::WidenUtf8(str);
+
+			playerSetting.bSkelBinary = nlJson.at("binarySkel");
+			playerSetting.strFontFilePath = nlJson.at("fontPath");
+
+		}
+		catch (nlohmann::json::exception e)
+		{
+			strError = e.what();
+			::MessageBoxA(nullptr, strError.c_str(), "Setting error", MB_ICONERROR);
+		}
+
+		return strError.empty();
+	}
+
+
 	struct StoryDatum
 	{
 		std::wstring wstrText;
@@ -81,7 +137,7 @@ namespace clst
 
 		std::wstring wstrScenerioId = L"CharaScenario" + wstrCharacterId + L".book";
 
-		return FindPathContainingId(wstrVoiceFolder, wstrScenerioId, L".json");
+		return FindPathContainingId(wstrVoiceFolder, wstrScenerioId, g_playerSetting.wstrSceneTextExtension.c_str());
 	}
 
 	/*脚本ファイル読み取り*/
@@ -122,7 +178,7 @@ namespace clst
 
 		if (!strError.empty())
 		{
-			win_dialogue::ShowMessageBox("Parse error", strError.c_str());
+			::MessageBoxA(nullptr, strError.c_str(), "Parse error", MB_ICONERROR);
 			return false;
 		}
 
@@ -169,25 +225,58 @@ namespace clst
 
 } /*namespace clst*/
 
+
+bool clst::InitialiseSetting()
+{
+	SPlayerSetting playerSetting;
+	bool bRet = ReadSettingFile(playerSetting);
+	if (bRet)
+	{
+		g_playerSetting = std::move(playerSetting);
+	}
+
+	return g_playerSetting.wstrAtlasExtension != g_playerSetting.wstrSkelExtension;
+}
+
+const std::string& clst::GetFontFilePath()
+{
+	return g_playerSetting.strFontFilePath;
+}
+
+const bool clst::IsSkelBinary()
+{
+	return g_playerSetting.bSkelBinary;
+}
+
 /*描画素材一覧取得*/
 void clst::GetSpineList(const std::wstring& wstrFolderPath, std::vector<std::string>& atlasPaths, std::vector<std::string>& skelPaths)
 {
-	/*---------------------
-	* atlas | *.atlas.txt
-	* skel  | *.skel.txt
-	* json  | *.txt
-	*---------------------*/
-	std::vector<std::wstring> filePaths;
-	win_filesystem::CreateFilePathList(wstrFolderPath.c_str(), L".txt", filePaths);
-	for (const std::wstring& filePath : filePaths)
+	bool bAtlasLonger = g_playerSetting.wstrAtlasExtension.size() > g_playerSetting.wstrSkelExtension.size();
+
+	std::wstring& wstrLongerExtesion = bAtlasLonger ? g_playerSetting.wstrAtlasExtension : g_playerSetting.wstrSkelExtension;
+	std::wstring& wstrShorterExtension = bAtlasLonger ? g_playerSetting.wstrSkelExtension : g_playerSetting.wstrAtlasExtension;
+	std::vector<std::string>& strLongerPaths = bAtlasLonger ? atlasPaths : skelPaths;
+	std::vector<std::string>& strShorterPaths = bAtlasLonger ? skelPaths : atlasPaths;
+
+	std::vector<std::wstring> wstrFilePaths;
+	win_filesystem::CreateFilePathList(wstrFolderPath.c_str(), L"*", wstrFilePaths);
+
+	for (const auto& filePath : wstrFilePaths)
 	{
-		if (filePath.rfind(L".atlas") != std::wstring::npos)
+		const auto EndsWith = [&filePath](const std::wstring& str)
+			-> bool
+			{
+				if (filePath.size() < str.size()) return false;
+				return std::equal(str.rbegin(), str.rend(), filePath.rbegin());
+			};
+
+		if (EndsWith(wstrLongerExtesion))
 		{
-			atlasPaths.push_back(win_text::NarrowANSI(filePath));
+			strLongerPaths.push_back(win_text::NarrowUtf8(filePath));
 		}
-		else
+		else if (EndsWith(wstrShorterExtension))
 		{
-			skelPaths.push_back(win_text::NarrowANSI(filePath));
+			strShorterPaths.push_back(win_text::NarrowUtf8(filePath));
 		}
 	}
 }
@@ -214,7 +303,7 @@ bool clst::SearchAndLoadScenarioFile(const std::wstring& wstrAtlasFolderPath, st
 
 		if (!storyDatum.wstrVoiceFileName.empty())
 		{
-			wstrVoiceFilePath = wstrVoiceFolderPath + L"\\" + storyDatum.wstrVoiceFileName + L".m4a";
+			wstrVoiceFilePath = wstrVoiceFolderPath + L"\\" + storyDatum.wstrVoiceFileName + g_playerSetting.wstrVoiceExtension;
 		}
 
 		textData.emplace_back(adv::TextDatum{ storyDatum.wstrText, wstrVoiceFilePath });
@@ -224,7 +313,7 @@ bool clst::SearchAndLoadScenarioFile(const std::wstring& wstrAtlasFolderPath, st
 	{
 		/*脚本ファイルなし・読み取り失敗*/
 		std::vector<std::wstring> audioFilePaths;
-		win_filesystem::CreateFilePathList(wstrVoiceFolderPath.c_str(), L".m4a", audioFilePaths);
+		win_filesystem::CreateFilePathList(wstrVoiceFolderPath.c_str(), g_playerSetting.wstrVoiceExtension.c_str(), audioFilePaths);
 
 		for (size_t i = 0; i < audioFilePaths.size(); ++i)
 		{
