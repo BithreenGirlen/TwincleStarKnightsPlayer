@@ -240,23 +240,6 @@ bool CSfmlSpinePlayer::SetupDrawer()
 		}
 	}
 
-	/*›ß‚ÉÄ¶‡‚É‚È‚Á‚Ä‚¢‚é‚Ì‚Å•À‚Ñ‘Ö‚¦ŒŸ¸•s—v*/
-	/*QºÄ¶‡*/
-	//std::vector<std::string> fixedNames = { "cut_1", "cut_2_loop", "cut_3_loop", "cut_4", "cut_5_loop"};
-	//auto IsR18 = [&fixedNames](const std::string& str)
-	//	-> bool
-	//	{
-	//		for (const std::string& fixedName : fixedNames)
-	//		{
-	//			if (strstr(str.c_str(), fixedName.c_str()) != nullptr)return true;
-	//		}
-	//		return false;
-	//	};
-	//if (std::all_of(m_animationNames.begin(), m_animationNames.end(), IsR18))
-	//{
-	//	m_animationNames = fixedNames;
-	//}
-
 	if (!m_animationNames.empty())
 	{
 		for (size_t i = 0; i < m_skeletonData.size(); ++i)
@@ -532,7 +515,7 @@ void CSfmlSpinePlayer::SetTexts(const std::vector<adv::TextDatum>& textData)
 	const auto iter = std::find_if(m_textData.begin(), m_textData.end(), HasAudio);
 	if (iter != m_textData.cend())
 	{
-		m_pAudioPlayer = std::make_unique<CMfMediaPlayer>(nullptr, 0);
+		m_pAudioPlayer = std::make_unique<CMfMediaPlayer>();
 	}
 }
 /*•¶šFØ‚è‘Ö‚¦*/

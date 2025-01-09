@@ -33,7 +33,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     {
         std::vector<std::wstring> folders;
         size_t nFolderIndex = 0;
-        win_filesystem::GetFolderListAndIndex(wstrPickedFolder, folders, &nFolderIndex);
+        win_filesystem::GetFilePathListAndIndex(wstrPickedFolder, nullptr, folders, &nFolderIndex);
         for (;;)
         {
             std::wstring wstrFolderPath = folders.at(nFolderIndex);
