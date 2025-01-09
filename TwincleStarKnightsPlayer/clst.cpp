@@ -165,6 +165,7 @@ namespace clst
 				const std::string strText = std::string(jRow[13]);
 				if (strText.empty())continue;
 
+				s.wstrText.reserve(128);
 				const std::string strName = std::string(jRow[1]);
 				if (!strName.empty())
 				{
