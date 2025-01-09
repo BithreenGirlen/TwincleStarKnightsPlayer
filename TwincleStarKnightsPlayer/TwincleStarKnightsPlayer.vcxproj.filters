@@ -33,9 +33,6 @@
     <ClCompile Include="spine_loader.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="spine-sfml.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="win_dialogue.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -231,6 +228,9 @@
     <ClCompile Include="clst.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="sfml_spine.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="adv.h">
@@ -245,9 +245,6 @@
     <ClInclude Include="spine_loader.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="spine-sfml.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="win_dialogue.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -258,6 +255,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="clst.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="sfml_spine.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

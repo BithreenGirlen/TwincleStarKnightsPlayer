@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "spine-sfml.h"
+#include "sfml_spine.h"
 #include "adv.h"
 
 /*Windows OS*/
@@ -23,7 +23,7 @@ private:
 	CSfmlTextureLoader m_textureLoader;
 	std::vector<std::unique_ptr<spine::Atlas>> m_atlases;
 	std::vector<std::shared_ptr<spine::SkeletonData>> m_skeletonData;
-	std::vector<std::shared_ptr<CSfmlSpineDrawable>> m_drawables;
+	std::vector<std::shared_ptr<CSfmlSpineDrawer>> m_drawables;
 
 	std::unique_ptr<sf::RenderWindow> m_window;
 	sf::Vector2f m_fBaseWindowSize = sf::Vector2f{ Size::kBaseWidth, Size::kBaseHeight };

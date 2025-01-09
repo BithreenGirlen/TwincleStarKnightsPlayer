@@ -216,9 +216,9 @@ bool CSfmlSpinePlayer::SetupDrawer()
 {
 	for (size_t i = 0; i < m_skeletonData.size(); ++i)
 	{
-		m_drawables.emplace_back(std::make_shared<CSfmlSpineDrawable>(m_skeletonData.at(i).get()));
+		m_drawables.emplace_back(std::make_shared<CSfmlSpineDrawer>(m_skeletonData.at(i).get()));
 
-		CSfmlSpineDrawable* drawable = m_drawables.at(i).get();
+		CSfmlSpineDrawer* drawable = m_drawables.at(i).get();
 		drawable->timeScale = 1.0f;
 		drawable->skeleton->setPosition(m_fBaseWindowSize.x / 2, m_fBaseWindowSize.y / 2);
 		drawable->skeleton->updateWorldTransform();
@@ -247,7 +247,7 @@ bool CSfmlSpinePlayer::SetupDrawer()
 			spine::Animation* animation = m_skeletonData.at(i).get()->findAnimation(m_animationNames.at(0).c_str());
 			if (animation != nullptr)
 			{
-				m_drawables.at(i).get()->state->setAnimation(0, animation->getName(), true);
+				m_drawables.at(i).get()->animationState->setAnimation(0, animation->getName(), true);
 			}
 		}
 	}
@@ -425,7 +425,7 @@ void CSfmlSpinePlayer::ShiftAnimation()
 		spine::Animation* animation = m_skeletonData.at(i).get()->findAnimation(m_animationNames.at(m_nAnimationIndex).c_str());
 		if (animation != nullptr)
 		{
-			m_drawables.at(i).get()->state->setAnimation(0, animation->getName(), true);
+			m_drawables.at(i).get()->animationState->setAnimation(0, animation->getName(), true);
 		}
 	}
 }
