@@ -4,6 +4,8 @@
 #define WIN32_LEAN_AND_MEAN 
 #include <Windows.h>
 
+#include <locale.h>
+
 /*SFML*/
 #pragma comment(lib, "opengl32.lib")
 #pragma comment(lib, "winmm.lib")
@@ -28,6 +30,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_ LPWSTR    lpCmdLine,
     _In_ int       nCmdShow)
 {
+    setlocale(LC_ALL, ".utf8");
+
+    clst::InitialiseSetting();
+
     std::wstring wstrPickedFolder = win_dialogue::SelectWorkFolder(nullptr);
     if (!wstrPickedFolder.empty())
     {
@@ -52,7 +58,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             {
                 if (!textData.empty())
                 {
-                    SfmlPlayer.SetFont("C:\\Windows\\Fonts\\yumindb.ttf", true, true);
+                    SfmlPlayer.SetFont(clst::GetFontFilePath(), true, true);
                     SfmlPlayer.SetTexts(textData);
                 }
 
@@ -78,4 +84,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
         }
     }
+
+    return 0;
 }
