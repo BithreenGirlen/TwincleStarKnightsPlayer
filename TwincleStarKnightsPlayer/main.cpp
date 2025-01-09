@@ -37,6 +37,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     std::wstring wstrPickedFolder = win_dialogue::SelectWorkFolder(nullptr);
     if (!wstrPickedFolder.empty())
     {
+        CSfmlSpinePlayer SfmlPlayer;
+        SfmlPlayer.SetFont(clst::GetFontFilePath(), true, true);
+
         std::vector<std::wstring> folders;
         size_t nFolderIndex = 0;
         win_filesystem::GetFilePathListAndIndex(wstrPickedFolder, nullptr, folders, &nFolderIndex);
@@ -49,34 +52,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             clst::GetSpineList(wstrFolderPath, atlasPaths, skelPaths);
             if (skelPaths.empty())break;
 
+            bool bRet = SfmlPlayer.SetSpineFromFile(atlasPaths, skelPaths, clst::IsSkelBinary());
+            if (!bRet)break;
+
             std::vector<adv::TextDatum> textData;
             clst::SearchAndLoadScenarioFile(wstrFolderPath, textData);
+            SfmlPlayer.SetTexts(textData);
 
-            CSfmlSpinePlayer SfmlPlayer;
-            bool bRet = SfmlPlayer.SetSpineFromFile(atlasPaths, skelPaths, skelPaths.at(0).rfind(".skel") != std::string::npos);
-            if (bRet)
+            int iRet = SfmlPlayer.Display(L"TwincleStar Player");
+            if (iRet == 1)
             {
-                if (!textData.empty())
-                {
-                    SfmlPlayer.SetFont(clst::GetFontFilePath(), true, true);
-                    SfmlPlayer.SetTexts(textData);
-                }
-
-                int iRet = SfmlPlayer.Display(L"TwincleStar Player");
-                if (iRet == 1)
-                {
-                    ++nFolderIndex;
-                    if (nFolderIndex > folders.size() - 1)nFolderIndex = 0;
-                }
-                else if (iRet == 2)
-                {
-                    --nFolderIndex;
-                    if (nFolderIndex > folders.size() - 1)nFolderIndex = folders.size() - 1;
-                }
-                else
-                {
-                    break;
-                }
+                ++nFolderIndex;
+                if (nFolderIndex > folders.size() - 1)nFolderIndex = 0;
+            }
+            else if (iRet == 2)
+            {
+                --nFolderIndex;
+                if (nFolderIndex > folders.size() - 1)nFolderIndex = folders.size() - 1;
             }
             else
             {

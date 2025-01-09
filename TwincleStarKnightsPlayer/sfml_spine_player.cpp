@@ -16,6 +16,7 @@ CSfmlSpinePlayer::~CSfmlSpinePlayer()
 bool CSfmlSpinePlayer::SetSpineFromFile(const std::vector<std::string>& atlasPaths, const std::vector<std::string>& skelPaths, bool bIsBinary)
 {
 	if (atlasPaths.size() != skelPaths.size())return false;
+	ClearDrawables();
 
 	for (size_t i = 0; i < atlasPaths.size(); ++i)
 	{
@@ -40,6 +41,7 @@ bool CSfmlSpinePlayer::SetSpineFromFile(const std::vector<std::string>& atlasPat
 bool CSfmlSpinePlayer::SetSpineFromMemory(const std::vector<std::string>& atlasData, const std::vector<std::string>& atlasPaths, const std::vector<std::string>& skelData, bool bIsBinary)
 {
 	if (atlasData.size() != skelData.size() || atlasData.size() != atlasPaths.size())return false;
+	ClearDrawables();
 
 	for (size_t i = 0; i < atlasData.size(); ++i)
 	{
@@ -64,23 +66,24 @@ bool CSfmlSpinePlayer::SetSpineFromMemory(const std::vector<std::string>& atlasD
 /*ウィンドウ表示*/
 int CSfmlSpinePlayer::Display(const wchar_t* pwzWindowName)
 {
-	sf::Vector2i iMouseStartPos;
-
-	bool bOnWindowMove = false;
-	bool bSpeedHavingChanged = false;
-
 	int iRet = 0;
 
 	m_window = std::make_unique<sf::RenderWindow>(sf::VideoMode(static_cast<unsigned int>(m_fBaseWindowSize.x), static_cast<unsigned int>(m_fBaseWindowSize.y)), pwzWindowName, sf::Style::None);
 	m_window->setPosition(sf::Vector2i(0, 0));
 	m_window->setFramerateLimit(0);
+
 	ResetScale();
 	UpdateMessageText();
 
-	sf::Event event;
-	sf::Clock deltaClock;
+	sf::Vector2i iMouseStartPos;
+
+	bool bOnWindowMove = false;
+	bool bSpeedHavingChanged = false;
+
+	m_spineClock.restart();
 	while (m_window->isOpen())
 	{
+		sf::Event event;
 		while (m_window->pollEvent(event))
 		{
 			switch (event.type)
@@ -196,9 +199,7 @@ int CSfmlSpinePlayer::Display(const wchar_t* pwzWindowName)
 			}
 		}
 
-		float delta = deltaClock.getElapsedTime().asSeconds();
-		deltaClock.restart();
-		Redraw(delta);
+		Redraw();
 
 		CheckTimer();
 
@@ -210,6 +211,19 @@ int CSfmlSpinePlayer::Display(const wchar_t* pwzWindowName)
 		}
 	}
 	return iRet;
+}
+/*消去*/
+void CSfmlSpinePlayer::ClearDrawables()
+{
+	m_drawables.clear();
+	m_atlases.clear();
+	m_skeletonData.clear();
+
+	m_animationNames.clear();
+	m_nAnimationIndex = 0;
+
+	m_skinNames.clear();
+	m_nSkinIndex = 0;
 }
 /*描画器設定*/
 bool CSfmlSpinePlayer::SetupDrawer()
@@ -271,38 +285,52 @@ void CSfmlSpinePlayer::WorkOutDefaultScale()
 			}
 		};
 
-	for (size_t i = 0; i < m_skeletonData.size(); ++i)
+	for (const auto& pSkeletonDatum : m_skeletonData)
 	{
-		if (m_skeletonData.at(i).get()->getWidth() > 0.f && m_skeletonData.at(i).get()->getHeight() > 0.f)
+		if (pSkeletonDatum->getWidth() > 0.f && pSkeletonDatum->getHeight() > 0.f)
 		{
-			CompareDimention(m_skeletonData.at(i).get()->getWidth(), m_skeletonData.at(i).get()->getHeight());
+			CompareDimention(pSkeletonDatum->getWidth(), pSkeletonDatum->getHeight());
 		}
 		else
 		{
 			/*If skeletonData does not store size, deduce from the attachment of the default skin.*/
-			spine::Attachment* pAttachment = m_skeletonData.at(i).get()->getDefaultSkin()->getAttachments().next()._attachment;
-			if (pAttachment != nullptr)
+			const auto FindDefaultSkinAttachment = [&pSkeletonDatum]()
+				-> spine::Attachment*
+				{
+					spine::Skin::AttachmentMap::Entries attachmentMapEntries = pSkeletonDatum->getDefaultSkin()->getAttachments();
+					for (; attachmentMapEntries.hasNext();)
+					{
+						spine::Skin::AttachmentMap::Entry attachmentMapEntry = attachmentMapEntries.next();
+						if (attachmentMapEntry._slotIndex == 0)
+						{
+							return attachmentMapEntry._attachment;
+						}
+					}
+					return nullptr;
+				};
+
+			spine::Attachment* pAttachment = FindDefaultSkinAttachment();
+			if (pAttachment == nullptr)continue;
+
+			if (pAttachment->getRTTI().isExactly(spine::RegionAttachment::rtti))
 			{
-				if (pAttachment->getRTTI().isExactly(spine::RegionAttachment::rtti))
+				spine::RegionAttachment* pRegionAttachment = (spine::RegionAttachment*)pAttachment;
+				if (pRegionAttachment->getWidth() > 0.f && pRegionAttachment->getHeight() > 0.f)
 				{
-					spine::RegionAttachment* pRegionAttachment = (spine::RegionAttachment*)pAttachment;
-					if (pRegionAttachment->getWidth() > 0.f && pRegionAttachment->getHeight() > 0.f)
-					{
-						CompareDimention
-						(
-							pRegionAttachment->getWidth() * pRegionAttachment->getScaleX(),
-							pRegionAttachment->getHeight() * pRegionAttachment->getScaleY()
-						);
-					}
+					CompareDimention
+					(
+						pRegionAttachment->getWidth() * pRegionAttachment->getScaleX(),
+						pRegionAttachment->getHeight() * pRegionAttachment->getScaleY()
+					);
 				}
-				else if (pAttachment->getRTTI().isExactly(spine::MeshAttachment::rtti))
+			}
+			else if (pAttachment->getRTTI().isExactly(spine::MeshAttachment::rtti))
+			{
+				spine::MeshAttachment* pMeshAttachment = (spine::MeshAttachment*)pAttachment;
+				if (pMeshAttachment->getWidth() > 0.f && pMeshAttachment->getHeight() > 0.f)
 				{
-					spine::MeshAttachment* pMeshAttachment = (spine::MeshAttachment*)pAttachment;
-					if (pMeshAttachment->getWidth() > 0.f && pMeshAttachment->getHeight() > 0.f)
-					{
-						float fScale = pMeshAttachment->getWidth() > Size::kMinAtlas && pMeshAttachment->getHeight() > Size::kMinAtlas ? 1.f : 2.f;
-						CompareDimention(pMeshAttachment->getWidth() * fScale, pMeshAttachment->getHeight() * fScale);
-					}
+					float fScale = pMeshAttachment->getWidth() > Size::kMinAtlas && pMeshAttachment->getHeight() > Size::kMinAtlas ? 1.f : 2.f;
+					CompareDimention(pMeshAttachment->getWidth() * fScale, pMeshAttachment->getHeight() * fScale);
 				}
 			}
 		}
@@ -457,8 +485,11 @@ void CSfmlSpinePlayer::UpdateSkin()
 	}
 }
 /*再描画*/
-void CSfmlSpinePlayer::Redraw(float fDelta)
+void CSfmlSpinePlayer::Redraw()
 {
+	float fDelta = m_spineClock.getElapsedTime().asSeconds();
+	m_spineClock.restart();
+
 	if (m_window.get() != nullptr)
 	{
 		m_window->clear();
@@ -506,6 +537,8 @@ bool CSfmlSpinePlayer::SetFont(const std::string& strFilePath, bool bBold, bool 
 void CSfmlSpinePlayer::SetTexts(const std::vector<adv::TextDatum>& textData)
 {
 	m_textData = textData;
+	m_nTextIndex = 0;
+	m_msgText.setString("");
 
 	const auto HasAudio = [](const adv::TextDatum& text)
 		-> bool
@@ -528,7 +561,7 @@ void CSfmlSpinePlayer::SwitchTextColor()
 void CSfmlSpinePlayer::CheckTimer()
 {
 	constexpr float fAutoPlayInterval = 2.f;
-	float fSecond = m_clock.getElapsedTime().asSeconds();
+	float fSecond = m_textClock.getElapsedTime().asSeconds();
 	if (m_pAudioPlayer.get() != nullptr && m_pAudioPlayer.get()->IsEnded() && fSecond > fAutoPlayInterval)
 	{
 		if (m_nTextIndex < m_textData.size() - 1)
@@ -537,7 +570,7 @@ void CSfmlSpinePlayer::CheckTimer()
 		}
 		else
 		{
-			m_clock.restart();
+			m_textClock.restart();
 		}
 	}
 }
@@ -563,15 +596,14 @@ void CSfmlSpinePlayer::UpdateMessageText()
 
 	const adv::TextDatum& textDatum = m_textData.at(m_nTextIndex);
 	std::wstring wstr = textDatum.wstrText;
-	if (!wstr.empty())
+
+	constexpr unsigned int kLineThreashold = 46;
+	for (size_t i = kLineThreashold; i < wstr.size(); i += kLineThreashold)
 	{
-		constexpr unsigned int kWodrdsInALine = 46;
-		if (wstr.size() > kWodrdsInALine)
-		{
-			wstr.insert(wstr.size() / 2, L"\n");
-		}
-		if (wstr.back() != L'\n') wstr += L"\n ";
+		wstr.insert(i, L"\n");
 	}
+	if (!wstr.empty() && wstr.back() != L'\n') wstr += L"\n ";
+
 	wstr += std::to_wstring(m_nTextIndex + 1) + L"/" + std::to_wstring(m_textData.size());
 	m_msgText.setString(wstr);
 
@@ -582,7 +614,7 @@ void CSfmlSpinePlayer::UpdateMessageText()
 			m_pAudioPlayer->Play(textDatum.wstrVoicePath.c_str());
 		}
 	}
-	m_clock.restart();
+	m_textClock.restart();
 }
 /*音声再生速度変更*/
 void CSfmlSpinePlayer::ChangePlaybackRate(bool bFaster)
@@ -598,7 +630,6 @@ void CSfmlSpinePlayer::ChangePlaybackRate(bool bFaster)
 		else if (!bFaster && dbRate > 0.51)
 		{
 			dbRate -= fRatePortion;
-
 		}
 		m_pAudioPlayer.get()->SetCurrentRate(dbRate);
 	}

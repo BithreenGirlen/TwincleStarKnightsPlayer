@@ -25,6 +25,8 @@ private:
 	std::vector<std::shared_ptr<spine::SkeletonData>> m_skeletonData;
 	std::vector<std::shared_ptr<CSfmlSpineDrawer>> m_drawables;
 
+	sf::Clock m_spineClock;
+
 	std::unique_ptr<sf::RenderWindow> m_window;
 	sf::Vector2f m_fBaseWindowSize = sf::Vector2f{ Size::kBaseWidth, Size::kBaseHeight };
 
@@ -45,6 +47,7 @@ private:
 
 	bool m_bDrawOrderReversed = false;
 
+	void ClearDrawables();
 	bool SetupDrawer();
 	void WorkOutDefaultScale();
 
@@ -61,7 +64,7 @@ private:
 	void ShiftSkin(bool bForward);
 	void UpdateSkin();
 
-	void Redraw(float fDelta);
+	void Redraw();
 
 	/*ï∂èÕï\é¶óp*/
 public:
@@ -70,7 +73,7 @@ public:
 private:
 	sf::Font m_font;
 	sf::Text m_msgText;
-	sf::Clock m_clock;
+	sf::Clock m_textClock;
 
 	size_t m_nTextIndex = 0;
 	std::vector<adv::TextDatum> m_textData;
