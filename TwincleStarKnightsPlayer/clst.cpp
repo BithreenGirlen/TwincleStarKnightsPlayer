@@ -157,18 +157,28 @@ namespace clst
 			/*最初の要素は項目名なので飛ばす*/
 			for (size_t i = 1; i < jData.size(); ++i)
 			{
+				StoryDatum s;
+
 				const nlohmann::json& jRow = jData.at(i).at("strings");
 				if (jRow.size() < 14)continue;
 
-				const std::string strText = std::string(jRow.at(13));
+				const std::string strText = std::string(jRow[13]);
 				if (strText.empty())continue;
+
+				const std::string strName = std::string(jRow[1]);
+				if (!strName.empty())
+				{
+					s.wstrText = win_text::WidenUtf8(strName);
+					s.wstrText += L":\n";
+				}
+				s.wstrText += win_text::WidenUtf8(strText);
 
 				std::string strVoice;
 				if (jRow.size() > 15)
 				{
-					strVoice = std::string(jRow.at(15));
+					s.wstrVoiceFileName = win_text::WidenUtf8(jRow[15]);
 				}
-				storyData.emplace_back(StoryDatum{ win_text::WidenUtf8(strText), win_text::WidenUtf8(strVoice) });
+				storyData.push_back(std::move(s));
 			}
 		}
 		catch (nlohmann::json::exception e)
