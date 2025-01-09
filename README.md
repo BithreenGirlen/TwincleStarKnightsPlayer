@@ -6,15 +6,8 @@
 - MSVC 2015-2022 (x64)
 
 ## How to play
-Select a folder containing spine resources through folder-select-dialogue.
-<pre>
-st_1083001 
-  ├ st_1083001.atlas.txt
-  ├ st_1083001.png
-  └ st_1083001.skel.txt
-</pre>
+First, prepare the files, commented below, with proper directory.
 
-Then, scenario file would be searched assuming the following paths.
 <pre>
 ...
 ├ Adventure
@@ -33,16 +26,24 @@ Then, scenario file would be searched assuming the following paths.
 │  │    ├ ImportChara
 │  │    │  ├ ...
 │  │    │  ├ 1083001 // voice folder
+│  │    │  │  ├ ...
+│  │    │  │  ├ b083_009_000001.m4a
+│  │    │  │  └ ...
 │  │    │  └ ...
 │  │    └ ...
 │  ├ ...
 │  └ Stills
 │    ├ ...
 │    ├ st_1083001 // spine folder
+│    │  ├ st_1083001.atlas.txt
+│    │  ├ st_1083001.png
+│    │  └ st_1083001.skel.txt
 │    └ ...
 └ ...
 </pre>
-If the scenario file found, voice files and texts for the scene will be set up. But in order to show text, it is necessary to install `游明朝` in the machine.
+
+Then, select any of spine folder in `AssetBundles/Stills/st_XXXXXXX` from the application.  
+The scene will be set up based on `CharaScenarioXXXXXXX.book.json` if exists.
 
 ## Mouse functions
 | Input  | Action  |
@@ -50,18 +51,18 @@ If the scenario file found, voice files and texts for the scene will be set up. 
 | Mouse wheel | Scale up/down |
 | Left button + mouse wheel | Speed up/down the animation. |
 | Left button click | Switch to the next animation. |
-| Left button drag | Move view point |
-| Middle button | Reset scaling, animation speed, and view point. |
-| Right button + mouse wheel | Play the next/previous audio file. |
-| Right button + left button | Move Window |
+| Left button drag | Move view-point |
+| Middle button | Reset scaling, animation speed, and view-point. |
+| Right button + mouse wheel | Show the next/previous text. |
+| Right button + left button | Move window |
 
 ## Keyboard functions
 | Input  | Action  |
 | --- | --- |
 | A | Enable/disable premultiplied alpha. |
-| B | Prefer/ignore blend-mode specified by the slot. |
-| C | Switch text color between black and white. |
-| R | Draw multiple spines in normal/reversed order. |
+| B | Prefer/ignore blend-mode specified by slots. |
+| C | Switch text colour between black and white. |
+| R | Switch draw-order between filename asc/descending order. |
 | T | Show/hide text. |
 | Esc | Close the application. |
 | Up | Move on to the next folder. |
@@ -70,44 +71,40 @@ If the scenario file found, voice files and texts for the scene will be set up. 
 | PageDown | Speed down the audio playback rate. |
 | Home | Reset the audio playback rate.|  
 
-- Some scene would be better rendered ignoring blend-mode specified by slots.
+- Some scene requires ignoring blend-mode specified by slots.
 
-## ガチャ演出
-To render gacha animation as intended, draw-order is important.  
-To be precise, the animation of `*_m1.png` should be first drawn and that of `*_m0.png` be drawn on that.
+## Preferences
+The following preferences can be configured through `setting.txt` in the same directory of the executable file.
+- Font file with which the scene text will be drawn.
+- File extension of scene resources.
 
-<pre>
-tf_1083001
-├ tf_1083001_m0.atlas.txt
-├ tf_1083001_m0.png
-├ tf_1083001_m0.skel.txt
-├ tf_1083001_m1.atlas.txt
-├ tf_1083001_m1.png
-└ tf_1083001_m1.skel.txt
-</pre>
-
-A feature to reverse draw-order (`R` key) is for this purpose.
-
-## Build dependency
+## External libraries
 - [JSON for Modern C++ v3.11.3](https://github.com/nlohmann/json/releases/tag/v3.11.3)
 - [SFML-2.6.1](https://www.sfml-dev.org/download/sfml/2.6.1/)
 - [spine-cpp-4.0](https://github.com/EsotericSoftware/spine-runtimes/tree/4.0)
 
-When building, supply the above libraries under the project directory. 
+## Build
+1. Run `deps/CMakeLists.txt` to obtain external libraries.
+2. Open `TwincleStarKnightsPlayer.sln` with Visual Studio.
+3. Select `Build Solution` on menu item.
+
+The `deps` folder will be as follows:
 <pre>
 TwincleStarKnightsPlayer
   ├ deps
   │  ├ nlohmann // JSON for Modern C++
   │  │   └ json.hpp
-  │  ├ SFML-2.6.1 // static libraries and headers of SFML
+  │  ├ SFML-2.6.1 // static libraries and headers of SFML for VC17
   │  │   ├ include
   │  │   │   └ ...
   │  │   └ lib
   │  │       └ ...
-  │  └ spine-cpp // sources and headers of spine-cpp 4.0
-  │    ├ include
-  │    │ └ ...
-  │    └ src
-  │      └ ...
+  │  ├ spine-cpp // sources and headers of spine-cpp 4.0
+  │  │ ├ include
+  │  │ │ └ ...
+  │  │ └ src
+  │  │   └ ...
+  │  ├ CMakeLists.txt
+  │  └ setting.txt
   └ ...
 </pre>
