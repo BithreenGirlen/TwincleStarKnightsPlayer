@@ -4,12 +4,24 @@
 
 namespace spine
 {
-	/* When will this be deleted? */
 	SpineExtension* getDefaultExtension()
 	{
 		return new DefaultSpineExtension();
 	}
 }
+
+static sf::BlendMode g_sfmlBlendModeNormalPma = sf::BlendMode(sf::BlendMode::One, sf::BlendMode::OneMinusSrcAlpha);
+static sf::BlendMode g_sfmlBlendModeAddPma = sf::BlendMode(sf::BlendMode::One, sf::BlendMode::One);
+static sf::BlendMode g_sfmlBlendModeScreen = sf::BlendMode(sf::BlendMode::One, sf::BlendMode::OneMinusSrcColor);
+static sf::BlendMode g_sfmlBlendModeMultiply = sf::BlendMode
+(
+	sf::BlendMode::Factor::DstColor,
+	sf::BlendMode::Factor::OneMinusSrcAlpha,
+	sf::BlendMode::Equation::Add,
+	sf::BlendMode::Factor::One,
+	sf::BlendMode::Factor::OneMinusSrcAlpha,
+	sf::BlendMode::Equation::Add
+);
 
 CSfmlSpineDrawer::CSfmlSpineDrawer(spine::SkeletonData* pSkeletonData, spine::AnimationStateData* pAnimationStateData)
 {
@@ -18,15 +30,15 @@ CSfmlSpineDrawer::CSfmlSpineDrawer(spine::SkeletonData* pSkeletonData, spine::An
 	/*sf::VertexArray seems not to have reserve-like method.*/
 	m_sfmlVertices.setPrimitiveType(sf::PrimitiveType::Triangles);
 
-	skeleton = new(__FILE__, __LINE__) spine::Skeleton(pSkeletonData);
+	skeleton = new spine::Skeleton(pSkeletonData);
 
 	if (pAnimationStateData == nullptr)
 	{
-		pAnimationStateData = new(__FILE__, __LINE__) spine::AnimationStateData(pSkeletonData);
+		pAnimationStateData = new spine::AnimationStateData(pSkeletonData);
 		m_bHasOwnAnimationStateData = true;
 	}
 
-	animationState = new(__FILE__, __LINE__) spine::AnimationState(pAnimationStateData);
+	animationState = new spine::AnimationState(pAnimationStateData);
 
 	m_quadIndices.add(0);
 	m_quadIndices.add(1);
@@ -34,19 +46,6 @@ CSfmlSpineDrawer::CSfmlSpineDrawer(spine::SkeletonData* pSkeletonData, spine::An
 	m_quadIndices.add(2);
 	m_quadIndices.add(3);
 	m_quadIndices.add(0);
-
-	m_sfmlBlendModeNormalPma = sf::BlendMode(sf::BlendMode::One, sf::BlendMode::OneMinusSrcAlpha);
-	m_sfmlBlendModeAddPma = sf::BlendMode(sf::BlendMode::One, sf::BlendMode::One);
-	m_sfmlBlendModeScreen = sf::BlendMode(sf::BlendMode::One, sf::BlendMode::OneMinusSrcColor);
-	m_sfmlBlendModeMultiply = sf::BlendMode
-	(
-		sf::BlendMode::Factor::DstColor,
-		sf::BlendMode::Factor::OneMinusSrcAlpha,
-		sf::BlendMode::Equation::Add,
-		sf::BlendMode::Factor::Zero,
-		sf::BlendMode::Factor::One,
-		sf::BlendMode::Equation::Add
-	);
 }
 
 CSfmlSpineDrawer::~CSfmlSpineDrawer()
@@ -130,11 +129,18 @@ void CSfmlSpineDrawer::draw(sf::RenderTarget& renderTarget, sf::RenderStates ren
 			pAttachmentUvs = &pRegionAttachment->getUVs();
 			pIndices = &m_quadIndices;
 
-			/*Fetch texture handle stored in AltasPage*/
+			/*Fetch texture stored in AltasPage*/
 #ifdef SPINE_4_1_OR_LATER
-			pSfmlTexture = (sf::Texture*)((spine::AtlasRegion*)pRegionAttachment->getRegion())->rendererObject;
+			spine::AtlasRegion* pAtlasRegion = static_cast<spine::AtlasRegion*>(pRegionAttachment->getRegion());
+
+			m_bAlphaPremultiplied = pAtlasRegion->page->pma;
+			pSfmlTexture = reinterpret_cast<sf::Texture*>(pAtlasRegion->rendererObject);
 #else
-			pSfmlTexture = (sf::Texture*)((spine::AtlasRegion*)pRegionAttachment->getRendererObject())->page->getRendererObject();
+			spine::AtlasRegion* pAtlasRegion = static_cast<spine::AtlasRegion*>(pRegionAttachment->getRendererObject());
+#ifdef SPINE_4_0
+			m_bAlphaPremultiplied = pAtlasRegion->page->pma;
+#endif
+			pSfmlTexture = reinterpret_cast<sf::Texture*>(pAtlasRegion->page->getRendererObject());
 #endif
 		}
 		else if (pAttachment->getRTTI().isExactly(spine::MeshAttachment::rtti))
@@ -153,11 +159,18 @@ void CSfmlSpineDrawer::draw(sf::RenderTarget& renderTarget, sf::RenderStates ren
 			pAttachmentUvs = &pMeshAttachment->getUVs();
 			pIndices = &pMeshAttachment->getTriangles();
 
-			/*Fetch texture handle stored in AltasPage*/
+			/*Fetch texture stored in AltasPage*/
 #ifdef SPINE_4_1_OR_LATER
-			pSfmlTexture = (sf::Texture*)((spine::AtlasRegion*)pMeshAttachment->getRegion())->rendererObject;
+			spine::AtlasRegion* pAtlasRegion = static_cast<spine::AtlasRegion*>(pMeshAttachment->getRegion());
+
+			m_bAlphaPremultiplied = pAtlasRegion->page->pma;
+			pSfmlTexture = reinterpret_cast<sf::Texture*>(pAtlasRegion->rendererObject);
 #else
-			pSfmlTexture = (sf::Texture*)((spine::AtlasRegion*)pMeshAttachment->getRendererObject())->page->getRendererObject();
+			spine::AtlasRegion* pAtlasRegion = static_cast<spine::AtlasRegion*>(pMeshAttachment->getRendererObject());
+#ifdef SPINE_4_0
+			m_bAlphaPremultiplied = pAtlasRegion->page->pma;
+#endif
+			pSfmlTexture = reinterpret_cast<sf::Texture*>(pAtlasRegion->page->getRendererObject());
 #endif
 		}
 		else if (pAttachment->getRTTI().isExactly(spine::ClippingAttachment::rtti))
@@ -191,7 +204,7 @@ void CSfmlSpineDrawer::draw(sf::RenderTarget& renderTarget, sf::RenderStates ren
 		/*
 		* The two tasks are required because SFML does not support indexed drawing.
 		* 1. Map index to vertex when adding.
-		* 2. Multiply alpha to colours if necessary. 
+		* 2. Multiply alpha to colours if necessary.
 		*/
 		for (int ii = 0; ii < pIndices->size(); ++ii)
 		{
@@ -217,16 +230,16 @@ void CSfmlSpineDrawer::draw(sf::RenderTarget& renderTarget, sf::RenderStates ren
 		switch (spineBlnedMode)
 		{
 		case spine::BlendMode_Additive:
-			sfmlBlendMode = m_bAlphaPremultiplied ? m_sfmlBlendModeAddPma : sf::BlendAdd;
+			sfmlBlendMode = m_bAlphaPremultiplied ? g_sfmlBlendModeAddPma : sf::BlendAdd;
 			break;
 		case spine::BlendMode_Multiply:
-			sfmlBlendMode = m_sfmlBlendModeMultiply;
+			sfmlBlendMode = g_sfmlBlendModeMultiply;
 			break;
 		case spine::BlendMode_Screen:
-			sfmlBlendMode = m_sfmlBlendModeScreen;
+			sfmlBlendMode = g_sfmlBlendModeScreen;
 			break;
 		default:
-			sfmlBlendMode = m_bAlphaPremultiplied ? m_sfmlBlendModeNormalPma : sf::BlendAlpha;
+			sfmlBlendMode = m_bAlphaPremultiplied ? g_sfmlBlendModeNormalPma : sf::BlendAlpha;
 			break;
 		}
 
@@ -248,12 +261,25 @@ void CSfmlSpineDrawer::SetLeaveOutList(spine::Vector<spine::String>& list)
 	}
 }
 
-bool CSfmlSpineDrawer::IsToBeLeftOut(const spine::String &slotName) const
+sf::FloatRect CSfmlSpineDrawer::GetBoundingBox() const
+{
+	sf::FloatRect boundingBox{};
+
+	if (skeleton != nullptr)
+	{
+		spine::Vector<float> tempVertices;
+		skeleton->getBounds(boundingBox.left, boundingBox.top, boundingBox.width, boundingBox.height, tempVertices);
+	}
+
+	return boundingBox;
+}
+
+bool CSfmlSpineDrawer::IsToBeLeftOut(const spine::String& slotName) const
 {
 	/*The comparison method depends on what should be excluded; the precise matching or just containing.*/
-	if (pLeaveOutCallback != nullptr)
+	if (m_pLeaveOutCallback != nullptr)
 	{
-		return pLeaveOutCallback(slotName.buffer(), slotName.length());
+		return m_pLeaveOutCallback(slotName.buffer(), slotName.length());
 	}
 	else
 	{

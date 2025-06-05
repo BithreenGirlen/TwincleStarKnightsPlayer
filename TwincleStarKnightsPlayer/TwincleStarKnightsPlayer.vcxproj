@@ -110,7 +110,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;SPINE_4_0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -124,7 +124,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_WINDOWS;SPINE_4_0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
     </ClCompile>
     <Link>
@@ -199,9 +199,11 @@
     <ClCompile Include="deps\spine-cpp\src\spine\VertexEffect.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mf_media_player.cpp" />
+    <ClCompile Include="sfml_main_window.cpp" />
     <ClCompile Include="sfml_spine.cpp" />
     <ClCompile Include="sfml_spine_player.cpp" />
     <ClCompile Include="spine_loader.cpp" />
+    <ClCompile Include="spine_player.cpp" />
     <ClCompile Include="win_dialogue.cpp" />
     <ClCompile Include="win_filesystem.cpp" />
     <ClCompile Include="win_text.cpp" />
@@ -210,9 +212,11 @@
     <ClInclude Include="adv.h" />
     <ClInclude Include="clst.h" />
     <ClInclude Include="mf_media_player.h" />
+    <ClInclude Include="sfml_main_window.h" />
     <ClInclude Include="sfml_spine.h" />
     <ClInclude Include="sfml_spine_player.h" />
     <ClInclude Include="spine_loader.h" />
+    <ClInclude Include="spine_player.h" />
     <ClInclude Include="win_dialogue.h" />
     <ClInclude Include="win_filesystem.h" />
     <ClInclude Include="win_text.h" />

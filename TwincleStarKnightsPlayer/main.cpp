@@ -23,22 +23,22 @@
 #include "win_dialogue.h"
 #include "win_filesystem.h"
 #include "clst.h"
-#include "sfml_spine_player.h"
+#include "sfml_main_window.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
     _In_ LPWSTR    lpCmdLine,
     _In_ int       nCmdShow)
 {
-    setlocale(LC_ALL, ".utf8");
+    ::setlocale(LC_ALL, ".utf8");
 
     clst::InitialiseSetting();
 
     std::wstring wstrPickedFolder = win_dialogue::SelectWorkFolder(nullptr);
     if (!wstrPickedFolder.empty())
     {
-        CSfmlSpinePlayer SfmlPlayer;
-        SfmlPlayer.SetFont(clst::GetFontFilePath(), true, true);
+        CSfmlMainWindow sfmlMainWindow(L"TwinkleStar Player");
+        sfmlMainWindow.SetFont(clst::GetFontFilePath(), true, true);
 
         std::vector<std::wstring> folders;
         size_t nFolderIndex = 0;
@@ -52,14 +52,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             clst::GetSpineList(wstrFolderPath, atlasPaths, skelPaths);
             if (skelPaths.empty())break;
 
-            bool bRet = SfmlPlayer.SetSpineFromFile(atlasPaths, skelPaths, clst::IsSkelBinary());
+            bool bRet = sfmlMainWindow.SetSpineFromFile(atlasPaths, skelPaths, clst::IsSkelBinary());
             if (!bRet)break;
 
             std::vector<adv::TextDatum> textData;
             clst::SearchAndLoadScenarioFile(wstrFolderPath, textData);
-            SfmlPlayer.SetTexts(textData);
+            sfmlMainWindow.SetTexts(textData);
 
-            int iRet = SfmlPlayer.Display(L"TwincleStar Player");
+            int iRet = sfmlMainWindow.Display();
             if (iRet == 1)
             {
                 ++nFolderIndex;
