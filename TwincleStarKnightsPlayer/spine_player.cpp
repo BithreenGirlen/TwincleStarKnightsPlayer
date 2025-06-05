@@ -67,6 +67,15 @@ bool CSpinePlayer::LoadSpineFromMemory(const std::vector<std::string>& atlasData
 
 	return SetupDrawer();
 }
+
+size_t CSpinePlayer::GetNumberOfSpines() const
+{
+	return m_drawables.size();
+}
+bool CSpinePlayer::HasSpineBeenLoaded() const
+{
+	return !m_drawables.empty();
+}
 /*状態更新*/
 void CSpinePlayer::Update(float fDelta)
 {
@@ -163,6 +172,43 @@ void CSpinePlayer::ShiftSkin()
 		{
 			pDrawable->skeleton->setSkin(skin);
 			pDrawable->skeleton->setSlotsToSetupPose();
+		}
+	}
+}
+
+void CSpinePlayer::SetAnimationByIndex(size_t nIndex)
+{
+	if (nIndex < m_animationNames.size())
+	{
+		m_nAnimationIndex = nIndex;
+		RestartAnimation();
+	}
+}
+
+void CSpinePlayer::SetAnimationByName(const char* szAnimationName)
+{
+	if (szAnimationName != nullptr)
+	{
+		const auto& iter = std::find(m_animationNames.begin(), m_animationNames.end(), szAnimationName);
+		if (iter != m_animationNames.cend())
+		{
+			m_nAnimationIndex = std::distance(m_animationNames.begin(), iter);
+			RestartAnimation();
+		}
+	}
+}
+/*動作適用*/
+void CSpinePlayer::RestartAnimation()
+{
+	if (m_nAnimationIndex >= m_animationNames.size())return;
+	const char* szAnimationName = m_animationNames[m_nAnimationIndex].c_str();
+
+	for (const auto& pDrawable : m_drawables)
+	{
+		spine::Animation* pAnimation = pDrawable->skeleton->getData()->findAnimation(szAnimationName);
+		if (pAnimation != nullptr)
+		{
+			pDrawable->animationState->setAnimation(0, pAnimation->getName(), true);
 		}
 	}
 }
@@ -463,21 +509,6 @@ void CSpinePlayer::UpdateTimeScale()
 	for (const auto& pDrawble : m_drawables)
 	{
 		pDrawble->timeScale = m_fTimeScale;
-	}
-}
-/*動作適用*/
-void CSpinePlayer::RestartAnimation()
-{
-	if (m_nAnimationIndex >= m_animationNames.size())return;
-	const char* szAnimationName = m_animationNames[m_nAnimationIndex].c_str();
-
-	for (const auto& pDrawable : m_drawables)
-	{
-		spine::Animation* pAnimation = pDrawable->skeleton->getData()->findAnimation(szAnimationName);
-		if (pAnimation != nullptr)
-		{
-			pDrawable->animationState->setAnimation(0, pAnimation->getName(), true);
-		}
 	}
 }
 /*合成動作消去*/

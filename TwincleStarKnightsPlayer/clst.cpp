@@ -90,6 +90,9 @@ namespace clst
 	{
 		std::wstring wstrText;
 		std::wstring wstrVoiceFileName;
+
+		/* There should be more structs to manage decently, but it requires much more code refactoring. */
+		size_t nAnimationIndex = 0;
 	};
 
 	/*
@@ -162,13 +165,13 @@ namespace clst
 	}
 
 	/*脚本ファイル読み取り*/
-	static bool ReadScenarioFile(const std::wstring& wstrFilePath, std::vector<StoryDatum>& storyData)
+	static bool ReadScenarioFile(const std::wstring& wstrFilePath, std::vector<StoryDatum>& storyData, std::vector<std::string>& animationNames)
 	{
 		std::string strFile = win_filesystem::LoadFileAsString(wstrFilePath.c_str());
 		if (strFile.empty())return false;
 
 		std::string strError;
-
+		size_t nCurrentAnimationIndex = 0;
 		try
 		{
 			nlohmann::json nlJson = nlohmann::json::parse(strFile);
@@ -183,10 +186,10 @@ namespace clst
 				const nlohmann::json& jRow = jData[i].at("strings");
 				if (jRow.size() > CommandIndex::Text)
 				{
-					const std::string strText = jRow[CommandIndex::Text].get<std::string>();
+					const std::string& strText = jRow[CommandIndex::Text].get<std::string>();
 					if (strText.empty())continue;
 
-					const std::string strName = jRow[CommandIndex::Arg1].get<std::string>();
+					const std::string& strName = jRow[CommandIndex::Arg1].get<std::string>();
 					if (!strName.empty())
 					{
 						s.wstrText = win_text::WidenUtf8(strName);
@@ -198,7 +201,23 @@ namespace clst
 					{
 						s.wstrVoiceFileName = win_text::WidenUtf8(jRow[CommandIndex::Voice].get<std::string>());
 					}
+
+					s.nAnimationIndex = nCurrentAnimationIndex;
+
 					storyData.push_back(std::move(s));
+				}
+				else if (!jRow.empty())
+				{
+					/* 動作指定 */
+					if (jRow[0] == "BgEvent")
+					{
+						if (jRow.size() > CommandIndex::SpineAnim)
+						{
+							animationNames.push_back(jRow[CommandIndex::SpineAnim].get<std::string>());
+
+							nCurrentAnimationIndex = animationNames.size();
+						}
+					}
 				}
 			}
 		}
@@ -274,7 +293,7 @@ const std::string& clst::GetFontFilePath()
 	return g_playerSetting.strFontFilePath;
 }
 
-const bool clst::IsSkelBinary()
+bool clst::IsSkelBinary()
 {
 	const wchar_t* wszBinaryCandidates[] =
 	{
@@ -323,7 +342,7 @@ void clst::GetSpineList(const std::wstring& wstrFolderPath, std::vector<std::str
 	}
 }
 /*脚本ファイルの探索と読み込み*/
-bool clst::SearchAndLoadScenarioFile(const std::wstring& wstrAtlasFolderPath, std::vector<adv::TextDatum>& textData)
+bool clst::SearchAndLoadScenarioFile(const std::wstring& wstrAtlasFolderPath, std::vector<adv::TextDatum>& textData, std::vector<std::string>& animationNames)
 {
 	std::wstring wstrVoiceFolderPath = DeriveVoiceFolderPathFromSpineFolderPath(wstrAtlasFolderPath);
 	if (wstrVoiceFolderPath.empty())return false;
@@ -332,7 +351,7 @@ bool clst::SearchAndLoadScenarioFile(const std::wstring& wstrAtlasFolderPath, st
 	std::wstring wstrScenarioFilePath = DeriveScenarioFilePathFromSpineFolderPath(wstrAtlasFolderPath);
 	if (!wstrScenarioFilePath.empty())
 	{
-		ReadScenarioFile(wstrScenarioFilePath, storyData);
+		ReadScenarioFile(wstrScenarioFilePath, storyData, animationNames);
 	}
 
 	for (StoryDatum& storyDatum : storyData)
@@ -348,7 +367,7 @@ bool clst::SearchAndLoadScenarioFile(const std::wstring& wstrAtlasFolderPath, st
 			wstrVoiceFilePath = wstrVoiceFolderPath + L"\\" + storyDatum.wstrVoiceFileName + g_playerSetting.wstrVoiceExtension;
 		}
 
-		textData.emplace_back(adv::TextDatum{ storyDatum.wstrText, wstrVoiceFilePath });
+		textData.emplace_back(adv::TextDatum{ storyDatum.wstrText, wstrVoiceFilePath, storyDatum.nAnimationIndex });
 	}
 
 	if (textData.empty())

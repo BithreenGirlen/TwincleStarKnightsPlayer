@@ -74,7 +74,7 @@ int CSfmlMainWindow::Display()
 					int iX = iMouseStartPos.x - event.mouseButton.x;
 					int iY = iMouseStartPos.y - event.mouseButton.y;
 
-					if (iX == 0 && iY == 0)
+					if (iX == 0 && iY == 0 && m_animationNames.empty())
 					{
 						m_sfmlSpinePlayer->ShiftAnimation();
 					}
@@ -219,7 +219,7 @@ bool CSfmlMainWindow::SaveCurrentFrameImage()
 	if (pzAnimationName == nullptr)return false;
 
 	std::string strStrFilePath = pzAnimationName;
-	strStrFilePath  += "_" + std::to_string(fTrackTime) + ".png";
+	strStrFilePath += "_" + std::to_string(fTrackTime) + ".png";
 
 	sf::Texture texture;
 	bool bRet = texture.create(m_window->getSize().x, m_window->getSize().y);
@@ -229,7 +229,7 @@ bool CSfmlMainWindow::SaveCurrentFrameImage()
 	sf::Image image = texture.copyToImage();
 
 	bRet = image.saveToFile(strStrFilePath);
-	
+
 	return bRet;
 }
 /*éöëÃê›íË*/
@@ -248,12 +248,15 @@ bool CSfmlMainWindow::SetFont(const std::string& strFilePath, bool bBold, bool b
 
 	return true;
 }
-/*ï∂èÕäiî[*/
-void CSfmlMainWindow::SetTexts(const std::vector<adv::TextDatum>& textData)
+
+void CSfmlMainWindow::SetScenarioData(std::vector<adv::TextDatum>& textData, std::vector<std::string>& animationNames)
 {
-	m_textData = textData;
+	m_textData = std::move(textData);
+	m_animationNames = std::move(animationNames);
+
 	m_nTextIndex = 0;
 	m_msgText.setString("");
+	m_nLastAnimationIndex = 0;
 
 	const auto HasAudio = [](const adv::TextDatum& text)
 		-> bool
@@ -326,6 +329,16 @@ void CSfmlMainWindow::UpdateMessageText()
 
 	wstr += std::to_wstring(m_nTextIndex + 1) + L"/" + std::to_wstring(m_textData.size());
 	m_msgText.setString(wstr);
+
+	/* Checks if animation has to be switched or not. */
+	if (m_nLastAnimationIndex != textDatum.nAnimationIndex)
+	{
+		if (textDatum.nAnimationIndex < m_animationNames.size())
+		{
+			m_nLastAnimationIndex = textDatum.nAnimationIndex;
+			m_sfmlSpinePlayer->SetAnimationByName(m_animationNames[m_nLastAnimationIndex].c_str());
+		}
+	}
 
 	if (!textDatum.wstrVoicePath.empty())
 	{
