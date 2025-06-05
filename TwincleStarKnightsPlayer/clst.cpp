@@ -1,6 +1,4 @@
 ﻿
-#include <Windows.h>
-
 #include "clst.h"
 
 #include "win_dialogue.h"
@@ -9,17 +7,17 @@
 
 #include "deps/nlohmann/json.hpp"
 
+/* 内部用 */
 namespace clst
 {
 	struct SPlayerSetting
 	{
-		std::wstring wstrAtlasExtension = L"atlas.txt";
-		std::wstring wstrSkelExtension = L"skel.txt";
+		std::wstring wstrAtlasExtension = L".atlas";
+		std::wstring wstrSkelExtension = L".skel";
 		std::wstring wstrVoiceExtension = L".m4a";;
 		std::wstring wstrSceneTextExtension = L".json";
-		std::string strFontFilePath = "C:\\Windows\\Fonts\\yumindb.ttf";
 
-		bool bSkelBinary = true;
+		std::string strFontFilePath = "C:\\Windows\\Fonts\\yumindb.ttf";
 	};
 
 	static SPlayerSetting g_playerSetting;
@@ -37,33 +35,56 @@ namespace clst
 			nlohmann::json nlJson = nlohmann::json::parse(strFile);
 			std::string str;
 
-			nlohmann::json& jExtension = nlJson.at("extensions");
+			const nlohmann::json& jExtension = nlJson.at("extensions");
 
-			str = std::string(jExtension.at("atlas"));
+			str = jExtension.at("atlas").get<std::string>();
 			playerSetting.wstrAtlasExtension = win_text::WidenUtf8(str);
 
-			str = std::string(jExtension.at("skel"));
+			str = jExtension.at("skel").get<std::string>();
 			playerSetting.wstrSkelExtension = win_text::WidenUtf8(str);
 
-			str = std::string(jExtension.at("voice"));
+			str = jExtension.at("voice").get<std::string>();
 			playerSetting.wstrVoiceExtension = win_text::WidenUtf8(str);
 
-			str = std::string(jExtension.at("sceneText"));
+			str = jExtension.at("sceneText").get<std::string>();
 			playerSetting.wstrSceneTextExtension = win_text::WidenUtf8(str);
 
-			playerSetting.bSkelBinary = nlJson.at("binarySkel");
-			playerSetting.strFontFilePath = nlJson.at("fontPath");
+			playerSetting.strFontFilePath = nlJson.at("fontPath").get<std::string>();
 
 		}
 		catch (nlohmann::json::exception e)
 		{
 			strError = e.what();
-			::MessageBoxA(nullptr, strError.c_str(), "Setting error", MB_ICONERROR);
+			win_dialogue::ShowMessageBox(strError.c_str(), "Setting error");
 		}
 
 		return strError.empty();
 	}
 
+
+	struct CommandIndex abstract final
+	{
+		enum
+		{
+			Command,
+			Arg1,
+			Arg2,
+			Arg3,
+			Arg4,
+			Arg5,
+			Arg6,
+			Skin,
+			SpineAnim,
+			SpineSubAnim,
+			AnimCompType,
+			AnimSpd,
+			WaitType,
+			Text,
+			PageCtrl,
+			Voice,
+			WIndowType
+		};
+	};
 
 	struct StoryDatum
 	{
@@ -79,7 +100,7 @@ namespace clst
 	*/
 
 	/*人物ID抽出*/
-	std::wstring ExtractCharacterIdFromSpineFolderPath(const std::wstring& wstrSpineFolderPath)
+	static std::wstring ExtractCharacterIdFromSpineFolderPath(const std::wstring& wstrSpineFolderPath)
 	{
 		size_t nPos = wstrSpineFolderPath.find_last_of(L"\\/");
 		if (nPos == std::wstring::npos)return std::wstring();
@@ -92,7 +113,7 @@ namespace clst
 	}
 
 	/*ID対応先探索*/
-	std::wstring FindPathContainingId(const std::wstring& targetFolder, const std::wstring& wstrId, const wchar_t* pwzFileExtension)
+	static std::wstring FindPathContainingId(const std::wstring& targetFolder, const std::wstring& wstrId, const wchar_t* pwzFileExtension)
 	{
 		std::vector<std::wstring> paths;
 		win_filesystem::CreateFilePathList(targetFolder.c_str(), pwzFileExtension, paths);
@@ -110,7 +131,7 @@ namespace clst
 	}
 
 	/*画像階層 => 音声階層*/
-	std::wstring DeriveVoiceFolderPathFromSpineFolderPath(const std::wstring& wstrAtlasFolderPath)
+	static std::wstring DeriveVoiceFolderPathFromSpineFolderPath(const std::wstring& wstrAtlasFolderPath)
 	{
 		std::wstring wstrCharacterId = ExtractCharacterIdFromSpineFolderPath(wstrAtlasFolderPath);
 		if (wstrCharacterId.empty())return std::wstring();
@@ -124,7 +145,7 @@ namespace clst
 		return FindPathContainingId(wstrVoiceFolder, wstrCharacterId, nullptr);
 	}
 	/*画像階層 => 脚本経路*/
-	std::wstring DeriveScenarioFilePathFromSpineFolderPath(const std::wstring& wstrAtlasFolderPath)
+	static std::wstring DeriveScenarioFilePathFromSpineFolderPath(const std::wstring& wstrAtlasFolderPath)
 	{
 		std::wstring wstrCharacterId = ExtractCharacterIdFromSpineFolderPath(wstrAtlasFolderPath);
 		if (wstrCharacterId.empty())return std::wstring();
@@ -141,7 +162,7 @@ namespace clst
 	}
 
 	/*脚本ファイル読み取り*/
-	bool ReadScenarioFile(const std::wstring& wstrFilePath, std::vector<StoryDatum>& storyData)
+	static bool ReadScenarioFile(const std::wstring& wstrFilePath, std::vector<StoryDatum>& storyData)
 	{
 		std::string strFile = win_filesystem::LoadFileAsString(wstrFilePath.c_str());
 		if (strFile.empty())return false;
@@ -159,27 +180,26 @@ namespace clst
 			{
 				StoryDatum s;
 
-				const nlohmann::json& jRow = jData.at(i).at("strings");
-				if (jRow.size() < 14)continue;
-
-				const std::string strText = std::string(jRow[13]);
-				if (strText.empty())continue;
-
-				s.wstrText.reserve(128);
-				const std::string strName = std::string(jRow[1]);
-				if (!strName.empty())
+				const nlohmann::json& jRow = jData[i].at("strings");
+				if (jRow.size() > CommandIndex::Text)
 				{
-					s.wstrText = win_text::WidenUtf8(strName);
-					s.wstrText += L":\n";
-				}
-				s.wstrText += win_text::WidenUtf8(strText);
+					const std::string strText = jRow[CommandIndex::Text].get<std::string>();
+					if (strText.empty())continue;
 
-				std::string strVoice;
-				if (jRow.size() > 15)
-				{
-					s.wstrVoiceFileName = win_text::WidenUtf8(jRow[15]);
+					const std::string strName = jRow[CommandIndex::Arg1].get<std::string>();
+					if (!strName.empty())
+					{
+						s.wstrText = win_text::WidenUtf8(strName);
+						s.wstrText += L":\n";
+					}
+					s.wstrText += win_text::WidenUtf8(strText);
+
+					if (jRow.size() > CommandIndex::Voice)
+					{
+						s.wstrVoiceFileName = win_text::WidenUtf8(jRow[CommandIndex::Voice].get<std::string>());
+					}
+					storyData.push_back(std::move(s));
 				}
-				storyData.push_back(std::move(s));
 			}
 		}
 		catch (nlohmann::json::exception e)
@@ -189,14 +209,14 @@ namespace clst
 
 		if (!strError.empty())
 		{
-			::MessageBoxA(nullptr, strError.c_str(), "Parse error", MB_ICONERROR);
+			win_dialogue::ShowMessageBox(strError.c_str(), "Parse error");
 			return false;
 		}
 
 		return true;
 	}
 
-	void ReplaceEmoji(std::wstring& src)
+	static void ReplaceEmoji(std::wstring& src)
 	{
 		constexpr wchar_t swzToBeReplaced[] = L"<emoji=heart04>";
 		for (size_t nRead = 0;;)
@@ -208,7 +228,7 @@ namespace clst
 		}
 	}
 
-	void EliminateTag(std::wstring& wstr)
+	static void EliminateTag(std::wstring& wstr)
 	{
 		std::wstring wstrResult;
 		wstrResult.reserve(wstr.size());
@@ -256,7 +276,18 @@ const std::string& clst::GetFontFilePath()
 
 const bool clst::IsSkelBinary()
 {
-	return g_playerSetting.bSkelBinary;
+	const wchar_t* wszBinaryCandidates[] =
+	{
+		L".skel", L".bin"
+	};
+	for (size_t i = 0; i < sizeof(wszBinaryCandidates) / sizeof(wszBinaryCandidates[0]); ++i)
+	{
+		if (g_playerSetting.wstrSkelExtension.find(wszBinaryCandidates[i]) != std::wstring::npos)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 /*描画素材一覧取得*/
