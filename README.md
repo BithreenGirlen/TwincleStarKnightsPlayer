@@ -35,9 +35,9 @@ First, prepare the files, commented below, with proper directory.
 │  └ Stills
 │    ├ ...
 │    ├ st_1083001 // spine folder
-│    │  ├ st_1083001.atlas.txt
+│    │  ├ st_1083001.atlas
 │    │  ├ st_1083001.png
-│    │  └ st_1083001.skel.txt
+│    │  └ st_1083001.skel
 │    └ ...
 └ ...
 </pre>
@@ -46,36 +46,32 @@ Then, select any of spine folder in `AssetBundles/Stills/st_XXXXXXX` from the ap
 The scene will be set up based on `CharaScenarioXXXXXXX.book.json` if exists.
 
 ## Mouse functions
-| Input  | Action  |
+| Input | Action |
 | --- | --- |
-| Mouse wheel | Scale up/down |
+| Mouse wheel | Scale up/down. Combinating with <kbd>Ctrl</kbd> retains window size. |
 | Left button + mouse wheel | Speed up/down the animation. |
-| Left button click | Switch to the next animation. |
 | Left button drag | Move view-point |
-| Middle button | Reset scaling, animation speed, and view-point. |
-| Right button + mouse wheel | Show the next/previous text. |
-| Right button + left button | Move window |
+| Middle button | Reset scaling, animation speed, and view-point to default. |
+| Right button + mouse wheel | Fast-forward/rewind the text. |
+| Right button + left button | Start moving window. Left-click to end moving. |
 
 ## Keyboard functions
-| Input  | Action  |
+| Input | Action |
 | --- | --- |
-| A | Enable/disable premultiplied alpha. |
-| B | Prefer/ignore blend-mode specified by slots. |
-| C | Switch text colour between black and white. |
-| R | Switch draw-order between filename asc/descending order. |
-| T | Show/hide text. |
-| Esc | Close the application. |
-| Up | Move on to the next folder. |
-| Down | Move on to the previous folder. |
-| PageUp | Speed up the audio playback rate. |
-| PageDown | Speed down the audio playback rate. |
-| Home | Reset the audio playback rate.|  
+| <kbd>B</kbd> | Prefer/ignore blend-mode specified by slots. |
+| <kbd>C</kbd> | Toggle text colour between black and white. |
+| <kbd>T</kbd> | Show/hide text. |
+| <kbd>Esc</kbd> | Close the application. |
+| <kbd>Up</kbd> | Open the previous folder. |
+| <kbd>Down</kbd> | Open the next folder. |
+| <kbd>Right</kbd> | Fast-forward the text. |
+| <kbd>Left</kbd> | Rewind the text. |
 
-- Some scene requires ignoring blend-mode specified by slots.
+- Some scenes require entering `B` key to force blend-mode `Normal`instead of `Multiply`.
 
 ## Preferences
 The following preferences can be configured through `setting.txt` in the same directory of the executable file.
-- Font file with which the scene text will be drawn.
+- Font file with which the text will be drawn.
 - File extension of scene resources.
 
 ## External libraries
@@ -88,7 +84,8 @@ The following preferences can be configured through `setting.txt` in the same di
 2. Open `TwincleStarKnightsPlayer.sln` with Visual Studio.
 3. Select `Build Solution` on menu item.
 
-The `deps` folder will be as follows:
+<details><summary>deps directory will be as follows</summary>
+  
 <pre>
 TwincleStarKnightsPlayer
   ├ deps
@@ -108,3 +105,6 @@ TwincleStarKnightsPlayer
   │  └ setting.txt
   └ ...
 </pre>
+  
+</details>
+
