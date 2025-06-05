@@ -181,41 +181,47 @@ namespace clst
 			/*最初の要素は項目名なので飛ばす*/
 			for (size_t i = 1; i < jData.size(); ++i)
 			{
-				StoryDatum s;
-
 				const nlohmann::json& jRow = jData[i].at("strings");
-				if (jRow.size() > CommandIndex::Text)
+				if (jRow.empty())continue;
+
+				const std::string& command = jRow[CommandIndex::Command].get<std::string>();
+				if (command.empty())
 				{
-					const std::string& strText = jRow[CommandIndex::Text].get<std::string>();
-					if (strText.empty())continue;
-
-					const std::string& strName = jRow[CommandIndex::Arg1].get<std::string>();
-					if (!strName.empty())
+					if (jRow.size() > CommandIndex::Text)
 					{
-						s.wstrText = win_text::WidenUtf8(strName);
-						s.wstrText += L":\n";
+						StoryDatum s;
+
+						const std::string& strText = jRow[CommandIndex::Text].get<std::string>();
+						if (strText.empty())continue;
+
+						const std::string& strName = jRow[CommandIndex::Arg1].get<std::string>();
+						if (!strName.empty())
+						{
+							s.wstrText = win_text::WidenUtf8(strName);
+							s.wstrText += L":\n";
+						}
+						s.wstrText += win_text::WidenUtf8(strText);
+
+						if (jRow.size() > CommandIndex::Voice)
+						{
+							s.wstrVoiceFileName = win_text::WidenUtf8(jRow[CommandIndex::Voice].get<std::string>());
+						}
+
+						s.nAnimationIndex = nCurrentAnimationIndex;
+
+						storyData.push_back(std::move(s));
 					}
-					s.wstrText += win_text::WidenUtf8(strText);
-
-					if (jRow.size() > CommandIndex::Voice)
-					{
-						s.wstrVoiceFileName = win_text::WidenUtf8(jRow[CommandIndex::Voice].get<std::string>());
-					}
-
-					s.nAnimationIndex = nCurrentAnimationIndex;
-
-					storyData.push_back(std::move(s));
 				}
-				else if (!jRow.empty())
+				else
 				{
 					/* 動作指定 */
-					if (jRow[0] == "BgEvent")
+					if (command == "BgEvent")
 					{
 						if (jRow.size() > CommandIndex::SpineAnim)
 						{
 							animationNames.push_back(jRow[CommandIndex::SpineAnim].get<std::string>());
 
-							nCurrentAnimationIndex = animationNames.size();
+							nCurrentAnimationIndex = animationNames.size() - 1;
 						}
 					}
 				}
