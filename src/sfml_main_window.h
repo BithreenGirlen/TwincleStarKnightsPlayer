@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include "sfml_spine_player.h"
+#include "sfml-spine-cpp/sfml_spine_player.h"
 
 #include "adv.h"
 /*Windows OS*/
