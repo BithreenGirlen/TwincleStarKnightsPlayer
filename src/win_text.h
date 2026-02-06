@@ -6,10 +6,16 @@
 namespace win_text
 {
     std::wstring WidenUtf8(const std::string& str);
-    std::string NarrowUtf8(const std::wstring& wstr);
+    std::wstring WidenUtf8(const char* str, int length);
 
-    std::wstring WidenANSI(const std::string& str);
-    std::string NarrowANSI(const std::wstring& wstr);
+    std::string NarrowUtf8(const std::wstring& wstr);
+    std::string NarrowUtf8(const wchar_t* wstr, int length);
+
+    std::wstring WidenAnsi(const std::string& str);
+    std::wstring WidenAnsi(const char* str, int length);
+
+    std::string NarrowAnsi(const std::wstring& wstr);
+    std::string NarrowAnsi(const wchar_t* wstr, int length);
 }
 
 #endif //WIN_TEXT_H_

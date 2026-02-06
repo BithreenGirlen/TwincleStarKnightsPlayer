@@ -6,7 +6,7 @@
 
 namespace win_dialogue
 {
-	std::wstring SelectWorkFolder(void* hParentWnd);
+	std::wstring SelectWorkFolder(const wchar_t* pwzTitle, void* hParentWnd);
 	std::wstring SelectOpenFile(const wchar_t* pwzFileType, const wchar_t* pwzSpec, const wchar_t* pwzTitle, void* hParentWnd, bool bAny = false);
 	std::vector<std::wstring> SelectOpenFiles(const wchar_t* pwzFileType, const wchar_t* pwzSpec, const wchar_t* pwzTitle, void* hParentWnd, bool bAny = false);
 	std::wstring SelectSaveFile(const wchar_t* pwzFileType, const wchar_t* pwzSpec, const wchar_t* pwzDefaultFileName, void* hParentWnd);

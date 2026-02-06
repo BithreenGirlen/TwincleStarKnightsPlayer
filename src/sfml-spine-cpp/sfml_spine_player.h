@@ -6,15 +6,15 @@
 class CSfmlSpinePlayer : public CSpinePlayer
 {
 public:
-	CSfmlSpinePlayer(sf::RenderWindow* pSfmlWindow);
+	CSfmlSpinePlayer();
 	virtual ~CSfmlSpinePlayer();
 
-	virtual void Redraw();
-private:
-	virtual void WorkOutDefaultScale();
-	virtual void WorkOutDefaultOffset();
+	void redraw(sf::RenderTarget* pRenderTarget);
 
-	sf::RenderWindow *m_pSfmlWindow = nullptr;
+	std::optional<sf::FloatRect> getCurrentBoundingOfSlot(std::string_view slotName) const;
+private:
+	void workOutDefaultScale() override;
+	void workOutDefaultOffset() override;
 };
 
 #endif // !SFML_SPINE_PLAYER_H_

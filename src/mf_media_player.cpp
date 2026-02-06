@@ -49,25 +49,25 @@ CMfMediaPlayer::CMfMediaPlayer()
 	hr = ::MFCreateAttributes(&m_pMfAttributes, 1);
 	if (FAILED(hr))return;
 
-	m_pmfNotify = new CMfMediaPlayerNotify(this);
-	hr = m_pMfAttributes->SetUnknown(MF_MEDIA_ENGINE_CALLBACK, reinterpret_cast<IUnknown*>(m_pmfNotify));
+	m_pMfNotify = new CMfMediaPlayerNotify(this);
+	hr = m_pMfAttributes->SetUnknown(MF_MEDIA_ENGINE_CALLBACK, reinterpret_cast<IUnknown*>(m_pMfNotify));
 	if (FAILED(hr))goto failed;
 
 	hr = pMfFactory->CreateInstance(MF_MEDIA_ENGINE_REAL_TIME_MODE, m_pMfAttributes, &pMfMediaEngine);
 	if (FAILED(hr))goto failed;
 
-	hr = pMfMediaEngine->QueryInterface(__uuidof(IMFMediaEngineEx), (void**)&m_pmfEngineEx);
+	hr = pMfMediaEngine->QueryInterface(__uuidof(IMFMediaEngineEx), (void**)&m_pMfEngineEx);
 	if (FAILED(hr))goto failed;
 
-	m_pmfEngineEx->SetVolume(0.5);
-	m_pmfEngineEx->SetPreload(MF_MEDIA_ENGINE_PRELOAD_METADATA);
+	m_pMfEngineEx->SetVolume(0.5);
+	m_pMfEngineEx->SetPreload(MF_MEDIA_ENGINE_PRELOAD_METADATA);
 
 	return;
 failed:
-	if (m_pmfNotify != nullptr)
+	if (m_pMfNotify != nullptr)
 	{
-		m_pmfNotify->Release();
-		m_pmfNotify = nullptr;
+		m_pMfNotify->Release();
+		m_pMfNotify = nullptr;
 	}
 	if (m_pMfAttributes != nullptr)
 	{
@@ -83,10 +83,10 @@ CMfMediaPlayer::~CMfMediaPlayer()
 		m_pMfAttributes->Release();
 		m_pMfAttributes = nullptr;
 	}
-	if (m_pmfEngineEx != nullptr)
+	if (m_pMfEngineEx != nullptr)
 	{
-		m_pmfEngineEx->Shutdown();
-		m_pmfEngineEx = nullptr;
+		m_pMfEngineEx->Shutdown();
+		m_pMfEngineEx = nullptr;
 	}
 
 	if (SUCCEEDED(m_hrMfStart))
@@ -104,83 +104,121 @@ CMfMediaPlayer::~CMfMediaPlayer()
 /*再生*/
 bool CMfMediaPlayer::Play(const wchar_t* pwzFilePath)
 {
-	if (m_pmfEngineEx != nullptr)
+	if (m_pMfEngineEx != nullptr)
 	{
 		if (pwzFilePath != nullptr)
 		{
-			HRESULT hr = m_pmfEngineEx->SetSource(const_cast<BSTR>(pwzFilePath));
+			HRESULT hr = m_pMfEngineEx->SetSource(const_cast<BSTR>(pwzFilePath));
 		}
-		return SUCCEEDED(m_pmfEngineEx->Play());
+		return SUCCEEDED(m_pMfEngineEx->Play());
 	}
 	return false;
 }
-/*再生ループ設定*/
-BOOL CMfMediaPlayer::SwitchLoop()
+/* ループ指定 */
+bool CMfMediaPlayer::SetLoop(bool toLoop)
 {
-	if (m_pmfEngineEx != nullptr)
+	if (m_pMfEngineEx != nullptr)
 	{
-		m_iLoop ^= TRUE;
-		if (FAILED(m_pmfEngineEx->SetLoop(m_iLoop)))
-		{
-			m_iLoop ^= TRUE;
-		}
+		HRESULT hr = m_pMfEngineEx->SetLoop(toLoop ? TRUE : FALSE);
+
+		return SUCCEEDED(hr);
 	}
-	return m_iLoop;
+
+	return false;
 }
-/*消音設定*/
-BOOL CMfMediaPlayer::SwitchMute()
+/* ループ有無 */
+bool CMfMediaPlayer::IsLooped()
 {
-	if (m_pmfEngineEx != nullptr)
+	if (m_pMfEngineEx != nullptr)
 	{
-		m_iMute ^= TRUE;
-		if (FAILED(m_pmfEngineEx->SetMuted(m_iMute)))
-		{
-			m_iMute ^= TRUE;
-		}
+		return m_pMfEngineEx->GetLoop() == TRUE;
 	}
-	return m_iMute;
+
+	return false;
+}
+/* 消音設定 */
+bool CMfMediaPlayer::SetMute(bool toMute)
+{
+	if (m_pMfEngineEx != nullptr)
+	{
+		HRESULT hr = m_pMfEngineEx->SetMuted(toMute ? TRUE : FALSE);
+
+		return SUCCEEDED(hr);
+	}
+
+	return false;
+}
+/* 消音是否 */
+bool CMfMediaPlayer::IsMuted()
+{
+	if (m_pMfEngineEx != nullptr)
+	{
+		return m_pMfEngineEx->GetMuted() == TRUE;
+	}
+
+	return false;
 }
 /*停止・再開*/
-BOOL CMfMediaPlayer::SwitchPause()
+bool CMfMediaPlayer::SetPause(bool toPause)
 {
-	if (m_pmfEngineEx != nullptr)
+	if (m_pMfEngineEx != nullptr)
 	{
-		HRESULT hr = m_iPause ? m_pmfEngineEx->Play() : m_pmfEngineEx->Pause();
+		HRESULT hr = toPause ? m_pMfEngineEx->Pause() : m_pMfEngineEx->Play();
 		if (SUCCEEDED(hr))
 		{
-			m_iPause ^= TRUE;
-			if (m_iPause)
+			if (toPause)
 			{
-				m_pmfEngineEx->FrameStep(TRUE);
+				return FrameStep(true);
 			}
 		}
 	}
-	return m_iPause;
+
+	return false;
+}
+/* 停止是否 */
+bool CMfMediaPlayer::IsPaused()
+{
+	if (m_pMfEngineEx != nullptr)
+	{
+		return m_pMfEngineEx->IsPaused() == TRUE;
+	}
+
+	return false;
+}
+/* コマ送り・戻し */
+bool CMfMediaPlayer::FrameStep(bool forward)
+{
+	if (m_pMfEngineEx != nullptr)
+	{
+		return m_pMfEngineEx->FrameStep(forward ? TRUE : FALSE) == TRUE;
+	}
+
+	return false;
 }
 /*音量取得*/
 double CMfMediaPlayer::GetCurrentVolume()
 {
-	if (m_pmfEngineEx != nullptr)
+	if (m_pMfEngineEx != nullptr)
 	{
-		return m_pmfEngineEx->GetVolume();
+		return m_pMfEngineEx->GetVolume();
 	}
 	return 100.0;
 }
 /*再生速度取得*/
 double CMfMediaPlayer::GetCurrentRate()
 {
-	if (m_pmfEngineEx != nullptr)
+	if (m_pMfEngineEx != nullptr)
 	{
-		return m_pmfEngineEx->GetPlaybackRate();
+		return m_pMfEngineEx->GetPlaybackRate();
 	}
 	return 1.0;
 }
 /*再生位置取得*/
 long long CMfMediaPlayer::GetCurrentTimeInMilliSeconds()
 {
-	if (m_pmfEngineEx != nullptr)
+	if (m_pMfEngineEx != nullptr)
 	{
-		double dbTime = m_pmfEngineEx->GetCurrentTime();
+		double dbTime = m_pMfEngineEx->GetCurrentTime();
 		return static_cast<long long>(::round(dbTime * 1000));
 	}
 
@@ -189,39 +227,39 @@ long long CMfMediaPlayer::GetCurrentTimeInMilliSeconds()
 /*音量設定*/
 bool CMfMediaPlayer::SetCurrentVolume(double dbVolume)
 {
-	if (m_pmfEngineEx != nullptr)
+	if (m_pMfEngineEx != nullptr)
 	{
-		return SUCCEEDED(m_pmfEngineEx->SetVolume(dbVolume));
+		return SUCCEEDED(m_pMfEngineEx->SetVolume(dbVolume));
 	}
 	return false;
 }
 /*再生速度設定*/
 bool CMfMediaPlayer::SetCurrentRate(double dbRate)
 {
-	if (m_pmfEngineEx != nullptr)
+	if (m_pMfEngineEx != nullptr)
 	{
-		if (dbRate != m_pmfEngineEx->GetDefaultPlaybackRate())
+		if (dbRate != m_pMfEngineEx->GetDefaultPlaybackRate())
 		{
-			m_pmfEngineEx->SetPlaybackRate(dbRate);
+			m_pMfEngineEx->SetPlaybackRate(dbRate);
 		}
-		return SUCCEEDED(m_pmfEngineEx->SetDefaultPlaybackRate(dbRate));
+		return SUCCEEDED(m_pMfEngineEx->SetDefaultPlaybackRate(dbRate));
 	}
 	return false;
 }
 /*再生中是否*/
 bool CMfMediaPlayer::IsEnded()
 {
-	if (m_pmfEngineEx != nullptr)
+	if (m_pMfEngineEx != nullptr)
 	{
-		BOOL iRet = m_pmfEngineEx->HasAudio();
-		iRet |= m_pmfEngineEx->HasVideo();
+		BOOL iRet = m_pMfEngineEx->HasAudio();
+		iRet |= m_pMfEngineEx->HasVideo();
 		if (!iRet)
 		{
 			return true;
 		}
 		else
 		{
-			return m_pmfEngineEx->IsEnded() == TRUE;
+			return m_pMfEngineEx->IsEnded() == TRUE;
 		}
 	}
 
@@ -241,12 +279,12 @@ bool CMfMediaPlayer::GetVideoSize(DWORD* dwWidth, DWORD* dwHeight)
 {
 	if (dwWidth != nullptr && dwHeight != nullptr)
 	{
-		if (m_pmfEngineEx != nullptr)
+		if (m_pMfEngineEx != nullptr)
 		{
-			BOOL iRet = m_pmfEngineEx->HasVideo();
+			BOOL iRet = m_pMfEngineEx->HasVideo();
 			if (iRet)
 			{
-				HRESULT hr = m_pmfEngineEx->GetNativeVideoSize(dwWidth, dwHeight);
+				HRESULT hr = m_pMfEngineEx->GetNativeVideoSize(dwWidth, dwHeight);
 				return SUCCEEDED(hr);
 			}
 		}
@@ -262,9 +300,9 @@ void CMfMediaPlayer::SetDisplayArea(const RECT absoluteRect)
 /*表示領域変更*/
 bool CMfMediaPlayer::ResizeBuffer()
 {
-	if (m_pmfEngineEx != nullptr && m_hRetWnd != nullptr)
+	if (m_pMfEngineEx != nullptr && m_hRetWnd != nullptr)
 	{
-		BOOL iRet = m_pmfEngineEx->HasVideo();
+		BOOL iRet = m_pMfEngineEx->HasVideo();
 		if (iRet)
 		{
 			RECT rc;
@@ -273,7 +311,7 @@ bool CMfMediaPlayer::ResizeBuffer()
 			int iClientHeight = rc.bottom - rc.top;
 
 			MFARGB bg{ 0, 0, 0, 0 };
-			HRESULT hr = m_pmfEngineEx->UpdateVideoStream(&m_normalisedRect, &rc, &bg);
+			HRESULT hr = m_pMfEngineEx->UpdateVideoStream(&m_normalisedRect, &rc, &bg);
 			return SUCCEEDED(hr);
 		}
 	}
@@ -281,11 +319,11 @@ bool CMfMediaPlayer::ResizeBuffer()
 	return false;
 }
 /*正規化矩形計算*/
-void CMfMediaPlayer::WorkOutNormalisedRect(const RECT absoluteRect, MFVideoNormalizedRect* normaisedRect)
+void CMfMediaPlayer::WorkOutNormalisedRect(const RECT absoluteRect, MFVideoNormalizedRect* normalisedRect)
 {
-	if (m_pmfEngineEx != nullptr && normaisedRect != nullptr && m_hRetWnd != nullptr)
+	if (m_pMfEngineEx != nullptr && normalisedRect != nullptr && m_hRetWnd != nullptr)
 	{
-		BOOL iRet = m_pmfEngineEx->HasVideo();
+		BOOL iRet = m_pMfEngineEx->HasVideo();
 		if (iRet)
 		{
 			RECT rc;
@@ -298,7 +336,7 @@ void CMfMediaPlayer::WorkOutNormalisedRect(const RECT absoluteRect, MFVideoNorma
 			float x2 = static_cast<float>(absoluteRect.right) / iClientWidth;
 			float y2 = static_cast<float>(absoluteRect.bottom) / iClientHeight;
 
-			*normaisedRect = MFVideoNormalizedRect{ x1, y1, x2, y2 };
+			*normalisedRect = MFVideoNormalizedRect{ x1, y1, x2, y2 };
 		}
 	}
 }

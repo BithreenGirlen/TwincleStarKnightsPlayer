@@ -14,7 +14,7 @@ namespace win_dialogue
     };
 }
 
-std::wstring win_dialogue::SelectWorkFolder(void* hParentWnd)
+std::wstring win_dialogue::SelectWorkFolder(const wchar_t* pwzTitle, void* hParentWnd)
 {
     ComInit sInit;
     CComPtr<IFileOpenDialog> pFolderDlg;
@@ -24,6 +24,7 @@ std::wstring win_dialogue::SelectWorkFolder(void* hParentWnd)
         FILEOPENDIALOGOPTIONS opt{};
         pFolderDlg->GetOptions(&opt);
         pFolderDlg->SetOptions(opt | FOS_PICKFOLDERS | FOS_PATHMUSTEXIST | FOS_FORCEFILESYSTEM);
+        if (pwzTitle != nullptr)pFolderDlg->SetTitle(pwzTitle);
 
         if (SUCCEEDED(pFolderDlg->Show(static_cast<HWND>(hParentWnd))))
         {

@@ -2,8 +2,7 @@
 
 #include "sfml_spine_player.h"
 
-CSfmlSpinePlayer::CSfmlSpinePlayer(sf::RenderWindow* pSfmlWindow)
-	:m_pSfmlWindow(pSfmlWindow)
+CSfmlSpinePlayer::CSfmlSpinePlayer()
 {
 
 }
@@ -14,44 +13,59 @@ CSfmlSpinePlayer::~CSfmlSpinePlayer()
 }
 
 
-void CSfmlSpinePlayer::Redraw()
+void CSfmlSpinePlayer::redraw(sf::RenderTarget* pRenderTarget)
 {
-	if (m_pSfmlWindow != nullptr)
+	if (pRenderTarget != nullptr)
 	{
-		const auto& windowSize = m_pSfmlWindow->getSize();
-		float fX = (m_fBaseSize.x * m_fSkeletonScale - windowSize.x) / 2;
-		float fY = (m_fBaseSize.y * m_fSkeletonScale - windowSize.y) / 2;
+		const auto& targetSize = pRenderTarget->getSize();
+		float fX = (m_fBaseSize.x * m_fSkeletonScale - targetSize.x) / 2;
+		float fY = (m_fBaseSize.y * m_fSkeletonScale - targetSize.y) / 2;
 
 		sf::RenderStates renderState;
 		renderState.blendMode = sf::BlendAlpha;
-		renderState.transform.translate(-fX, -fY).scale(m_fSkeletonScale, m_fSkeletonScale);
+		renderState.transform.translate({ -fX, -fY }).scale({ m_fSkeletonScale, m_fSkeletonScale });
 
-		if (!m_bDrawOrderReversed)
+		if (!m_isDrawOrderReversed)
 		{
 			for (size_t i = 0; i < m_drawables.size(); ++i)
 			{
-				m_pSfmlWindow->draw(*m_drawables[i], renderState);
+				pRenderTarget->draw(*m_drawables[i], renderState);
 			}
 		}
 		else
 		{
-			for(long long i = m_drawables.size() - 1;i >= 0;--i)
+			for (long long i = m_drawables.size() - 1; i >= 0; --i)
 			{
-				m_pSfmlWindow->draw(*m_drawables[i], renderState);
+				pRenderTarget->draw(*m_drawables[i], renderState);
 			}
 		}
 	}
 }
+
+std::optional<sf::FloatRect> CSfmlSpinePlayer::getCurrentBoundingOfSlot(std::string_view slotName) const
+{
+	bool found = false;
+	for (const auto& drawable : m_drawables)
+	{
+		const auto& rect = drawable->getBoundingBoxOfSlot(slotName.data(), slotName.length(), &found);
+		if (found)
+		{
+			return rect;
+		}
+	}
+
+	return std::nullopt;
+}
 /*標準尺度算出*/
-void CSfmlSpinePlayer::WorkOutDefaultScale()
+void CSfmlSpinePlayer::workOutDefaultScale()
 {
 	m_fDefaultScale = 1.f;
 
 	unsigned int uiSkeletonWidth = static_cast<unsigned int>(m_fBaseSize.x);
 	unsigned int uiSkeletonHeight = static_cast<unsigned int>(m_fBaseSize.y);
 
-	unsigned int uiDesktopWidth = sf::VideoMode::getDesktopMode().width;
-	unsigned int uiDesktopHeight = sf::VideoMode::getDesktopMode().height;
+	unsigned int uiDesktopWidth = sf::VideoMode::getDesktopMode().size.x;
+	unsigned int uiDesktopHeight = sf::VideoMode::getDesktopMode().size.y;
 
 	if (uiSkeletonWidth > uiDesktopWidth || uiSkeletonHeight > uiDesktopHeight)
 	{
@@ -70,16 +84,16 @@ void CSfmlSpinePlayer::WorkOutDefaultScale()
 	}
 }
 
-void CSfmlSpinePlayer::WorkOutDefaultOffset()
+void CSfmlSpinePlayer::workOutDefaultOffset()
 {
 	float fMinX = FLT_MAX;
 	float fMinY = FLT_MAX;
 
 	for (const auto& pDrawable : m_drawables)
 	{
-		const auto& rect = pDrawable->GetBoundingBox();
-		fMinX = (std::min)(fMinX, rect.left);
-		fMinY = (std::min)(fMinY, rect.top);
+		const auto& rect = pDrawable->getBoundingBox();
+		fMinX = (std::min)(fMinX, rect.position.x);
+		fMinY = (std::min)(fMinY, rect.position.y);
 	}
 
 	m_fDefaultOffset = { fMinX, fMinY };

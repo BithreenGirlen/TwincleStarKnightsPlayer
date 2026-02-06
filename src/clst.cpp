@@ -14,10 +14,10 @@ namespace clst
 	{
 		std::wstring wstrAtlasExtension = L".atlas";
 		std::wstring wstrSkelExtension = L".skel";
-		std::wstring wstrVoiceExtension = L".m4a";;
+		std::wstring wstrVoiceExtension = L".m4a";
 		std::wstring wstrSceneTextExtension = L".json";
 
-		std::string strFontFilePath = "C:\\Windows\\Fonts\\yumindb.ttf";
+		std::string strFontFilePath = "C:\\Windows\\Fonts\\yumin.ttf";
 	};
 
 	static SPlayerSetting g_playerSetting;
@@ -28,37 +28,34 @@ namespace clst
 		std::string strFile = win_filesystem::LoadFileAsString(wstrFilePath.c_str());
 		if (strFile.empty())return false;
 
-		std::string strError;
-
 		try
 		{
-			nlohmann::json nlJson = nlohmann::json::parse(strFile);
-			std::string str;
-
+			const nlohmann::json& nlJson = nlohmann::json::parse(strFile);
 			const nlohmann::json& jExtension = nlJson.at("extensions");
 
-			str = jExtension.at("atlas").get<std::string>();
-			playerSetting.wstrAtlasExtension = win_text::WidenUtf8(str);
+			const std::string* pStr;
 
-			str = jExtension.at("skel").get<std::string>();
-			playerSetting.wstrSkelExtension = win_text::WidenUtf8(str);
+			pStr = jExtension.at("atlas").get<const std::string*>();
+			if (pStr != nullptr)playerSetting.wstrAtlasExtension = win_text::WidenUtf8(*pStr);
 
-			str = jExtension.at("voice").get<std::string>();
-			playerSetting.wstrVoiceExtension = win_text::WidenUtf8(str);
+			pStr = jExtension.at("skel").get<const std::string*>();
+			if (pStr != nullptr)playerSetting.wstrSkelExtension = win_text::WidenUtf8(*pStr);
 
-			str = jExtension.at("sceneText").get<std::string>();
-			playerSetting.wstrSceneTextExtension = win_text::WidenUtf8(str);
+			pStr = jExtension.at("voice").get<const std::string*>();
+			if (pStr != nullptr)playerSetting.wstrVoiceExtension = win_text::WidenUtf8(*pStr);
 
-			playerSetting.strFontFilePath = nlJson.at("fontPath").get<std::string>();
+			pStr = jExtension.at("sceneText").get<const std::string*>();
+			if (pStr != nullptr)playerSetting.wstrSceneTextExtension = win_text::WidenUtf8(*pStr);
 
+			playerSetting.strFontFilePath = nlJson.at("fontPath");
 		}
-		catch (nlohmann::json::exception e)
+		catch (const nlohmann::json::exception& e)
 		{
-			strError = e.what();
-			win_dialogue::ShowMessageBox(strError.c_str(), "Setting error");
+			win_dialogue::ShowMessageBox(e.what(), "Setting error");
+			return false;
 		}
 
-		return strError.empty();
+		return true;
 	}
 
 
@@ -82,7 +79,7 @@ namespace clst
 			Text,
 			PageCtrl,
 			Voice,
-			WIndowType
+			WindowType
 		};
 	};
 
@@ -102,20 +99,20 @@ namespace clst
 	* 画像 ../AssetBundles/Stills/st_XXXXXXX/
 	*/
 
-	/*人物ID抽出*/
+	/* 人物ID抽出 */
 	static std::wstring ExtractCharacterIdFromSpineFolderPath(const std::wstring& wstrSpineFolderPath)
 	{
 		size_t nPos = wstrSpineFolderPath.find_last_of(L"\\/");
-		if (nPos == std::wstring::npos)return std::wstring();
+		if (nPos == std::wstring::npos)return {};
+		++nPos;
 
-		std::wstring wstrCurrent = wstrSpineFolderPath.substr(nPos + 1);
-		nPos = wstrCurrent.find(L"st_");
-		if (nPos == std::wstring::npos)return std::wstring();
+		nPos = wstrSpineFolderPath.find(L"st_", nPos);
+		if (nPos == std::wstring::npos)return {};
 
-		return wstrCurrent.substr(nPos + 3);
+		return wstrSpineFolderPath.substr(nPos + 3);
 	}
 
-	/*ID対応先探索*/
+	/* ID対応先探索 */
 	static std::wstring FindPathContainingId(const std::wstring& targetFolder, const std::wstring& wstrId, const wchar_t* pwzFileExtension)
 	{
 		std::vector<std::wstring> paths;
@@ -123,38 +120,38 @@ namespace clst
 		const auto IsContained = [&wstrId](const std::wstring& wstr)
 			-> bool
 			{
-				return wcsstr(wstr.c_str(), wstrId.c_str()) != nullptr;
+				return wstr.find(wstrId) != std::wstring::npos;
 			};
 
-		const auto iter = std::find_if(paths.begin(), paths.end(), IsContained);
-		if (iter == paths.cend())return std::wstring();
+		const auto& iter = std::find_if(paths.begin(), paths.end(), IsContained);
+		if (iter == paths.cend())return {};
 
 		size_t nIndex = std::distance(paths.begin(), iter);
-		return paths.at(nIndex);
+		return paths[nIndex];
 	}
 
-	/*画像階層 => 音声階層*/
+	/* 画像階層 => 音声階層 */
 	static std::wstring DeriveVoiceFolderPathFromSpineFolderPath(const std::wstring& wstrAtlasFolderPath)
 	{
 		std::wstring wstrCharacterId = ExtractCharacterIdFromSpineFolderPath(wstrAtlasFolderPath);
-		if (wstrCharacterId.empty())return std::wstring();
+		if (wstrCharacterId.empty())return {};
 
 		size_t nPos = wstrAtlasFolderPath.find(L"Stills");
-		if (nPos == std::wstring::npos)return std::wstring();
+		if (nPos == std::wstring::npos)return {};
 
 		std::wstring wstrVoiceFolder = wstrAtlasFolderPath.substr(0, nPos);
 		wstrVoiceFolder += L"Sound\\Voice\\ImportChara";
 
 		return FindPathContainingId(wstrVoiceFolder, wstrCharacterId, nullptr);
 	}
-	/*画像階層 => 脚本経路*/
+	/* 画像階層 => 脚本経路 */
 	static std::wstring DeriveScenarioFilePathFromSpineFolderPath(const std::wstring& wstrAtlasFolderPath)
 	{
 		std::wstring wstrCharacterId = ExtractCharacterIdFromSpineFolderPath(wstrAtlasFolderPath);
-		if (wstrCharacterId.empty())return std::wstring();
+		if (wstrCharacterId.empty())return {};
 
 		size_t nPos = wstrAtlasFolderPath.find(L"AssetBundles");
-		if (nPos == std::wstring::npos)return std::wstring();
+		if (nPos == std::wstring::npos)return {};
 
 		std::wstring wstrVoiceFolder = wstrAtlasFolderPath.substr(0, nPos);
 		wstrVoiceFolder += L"Adventure\\ImportChara";
@@ -164,47 +161,46 @@ namespace clst
 		return FindPathContainingId(wstrVoiceFolder, wstrScenerioId, g_playerSetting.wstrSceneTextExtension.c_str());
 	}
 
-	/*脚本ファイル読み取り*/
+	/* 脚本ファイル読み取り */
 	static bool ReadScenarioFile(const std::wstring& wstrFilePath, std::vector<StoryDatum>& storyData, std::vector<std::string>& animationNames)
 	{
 		std::string strFile = win_filesystem::LoadFileAsString(wstrFilePath.c_str());
 		if (strFile.empty())return false;
 
-		std::string strError;
 		size_t nCurrentAnimationIndex = 0;
 		try
 		{
-			nlohmann::json nlJson = nlohmann::json::parse(strFile);
-			/*[0 - 3] : 日常, [4]: 本番*/
+			const nlohmann::json& nlJson = nlohmann::json::parse(strFile);
+			/* [0 - 3] : 日常, [4]: 本番 */
 			const nlohmann::json& jData = nlJson.at("importGridList").back().at("rows");
 
-			/*最初の要素は項目名なので飛ばす*/
+			/* 最初の要素は項目名なので飛ばす */
 			for (size_t i = 1; i < jData.size(); ++i)
 			{
 				const nlohmann::json& jRow = jData[i].at("strings");
 				if (jRow.empty())continue;
 
-				const std::string& command = jRow[CommandIndex::Command].get<std::string>();
+				std::string_view command = jRow[CommandIndex::Command];
 				if (command.empty())
 				{
 					if (jRow.size() > CommandIndex::Text)
 					{
 						StoryDatum s;
 
-						const std::string& strText = jRow[CommandIndex::Text].get<std::string>();
-						if (strText.empty())continue;
+						std::string_view text = jRow[CommandIndex::Text];
+						if (text.empty())continue;
 
-						const std::string& strName = jRow[CommandIndex::Arg1].get<std::string>();
-						if (!strName.empty())
+						std::string_view characterName = jRow[CommandIndex::Arg1];
+						if (!characterName.empty())
 						{
-							s.wstrText = win_text::WidenUtf8(strName);
+							s.wstrText = win_text::WidenUtf8(characterName.data(), static_cast<int>(characterName.size()));
 							s.wstrText += L":\n";
 						}
-						s.wstrText += win_text::WidenUtf8(strText);
+						s.wstrText += win_text::WidenUtf8(text.data(), static_cast<int>(text.size()));
 
 						if (jRow.size() > CommandIndex::Voice)
 						{
-							s.wstrVoiceFileName = win_text::WidenUtf8(jRow[CommandIndex::Voice].get<std::string>());
+							s.wstrVoiceFileName = win_text::WidenUtf8(jRow[CommandIndex::Voice]);
 						}
 
 						s.nAnimationIndex = nCurrentAnimationIndex;
@@ -219,7 +215,7 @@ namespace clst
 					{
 						if (jRow.size() > CommandIndex::SpineAnim)
 						{
-							animationNames.push_back(jRow[CommandIndex::SpineAnim].get<std::string>());
+							animationNames.push_back(jRow[CommandIndex::SpineAnim]);
 
 							nCurrentAnimationIndex = animationNames.size() - 1;
 						}
@@ -227,14 +223,9 @@ namespace clst
 				}
 			}
 		}
-		catch (nlohmann::json::exception e)
+		catch (const nlohmann::json::exception& e)
 		{
-			strError = e.what();
-		}
-
-		if (!strError.empty())
-		{
-			win_dialogue::ShowMessageBox(strError.c_str(), "Parse error");
+			win_dialogue::ShowMessageBox(e.what(), "Parse error");
 			return false;
 		}
 
@@ -276,10 +267,10 @@ namespace clst
 				wstrResult.push_back(c);
 			}
 		}
-		wstr = wstrResult;
+		wstr = std::move(wstrResult);
 	}
 
-} /*namespace clst*/
+} /* namespace clst */
 
 
 bool clst::InitialiseSetting()
@@ -301,34 +292,33 @@ const std::string& clst::GetFontFilePath()
 
 bool clst::IsSkelBinary()
 {
-	const wchar_t* wszBinaryCandidates[] =
+	constexpr const wchar_t* const binaryCandidates[] = { L".skel", L".bin" };
+
+	for (const auto& binaryCandidate : binaryCandidates)
 	{
-		L".skel", L".bin"
-	};
-	for (size_t i = 0; i < sizeof(wszBinaryCandidates) / sizeof(wszBinaryCandidates[0]); ++i)
-	{
-		if (g_playerSetting.wstrSkelExtension.find(wszBinaryCandidates[i]) != std::wstring::npos)
+		if (g_playerSetting.wstrSkelExtension.find(binaryCandidate) != std::wstring::npos)
 		{
 			return true;
 		}
 	}
+
 	return false;
 }
 
-/*描画素材一覧取得*/
+/* 描画素材一覧取得 */
 void clst::GetSpineList(const std::wstring& wstrFolderPath, std::vector<std::string>& atlasPaths, std::vector<std::string>& skelPaths)
 {
-	bool bAtlasLonger = g_playerSetting.wstrAtlasExtension.size() > g_playerSetting.wstrSkelExtension.size();
+	bool isAtlasLonger = g_playerSetting.wstrAtlasExtension.size() > g_playerSetting.wstrSkelExtension.size();
 
-	std::wstring& wstrLongerExtesion = bAtlasLonger ? g_playerSetting.wstrAtlasExtension : g_playerSetting.wstrSkelExtension;
-	std::wstring& wstrShorterExtension = bAtlasLonger ? g_playerSetting.wstrSkelExtension : g_playerSetting.wstrAtlasExtension;
-	std::vector<std::string>& strLongerPaths = bAtlasLonger ? atlasPaths : skelPaths;
-	std::vector<std::string>& strShorterPaths = bAtlasLonger ? skelPaths : atlasPaths;
+	std::wstring& longerExtesion = isAtlasLonger ? g_playerSetting.wstrAtlasExtension : g_playerSetting.wstrSkelExtension;
+	std::wstring& shorterExtension = isAtlasLonger ? g_playerSetting.wstrSkelExtension : g_playerSetting.wstrAtlasExtension;
+	std::vector<std::string>& longerPaths = isAtlasLonger ? atlasPaths : skelPaths;
+	std::vector<std::string>& shorterPaths = isAtlasLonger ? skelPaths : atlasPaths;
 
-	std::vector<std::wstring> wstrFilePaths;
-	win_filesystem::CreateFilePathList(wstrFolderPath.c_str(), L"*", wstrFilePaths);
+	std::vector<std::wstring> filePaths;
+	win_filesystem::CreateFilePathList(wstrFolderPath.c_str(), L"*", filePaths);
 
-	for (const auto& filePath : wstrFilePaths)
+	for (const auto& filePath : filePaths)
 	{
 		const auto EndsWith = [&filePath](const std::wstring& str)
 			-> bool
@@ -337,17 +327,17 @@ void clst::GetSpineList(const std::wstring& wstrFolderPath, std::vector<std::str
 				return std::equal(str.rbegin(), str.rend(), filePath.rbegin());
 			};
 
-		if (EndsWith(wstrLongerExtesion))
+		if (EndsWith(longerExtesion))
 		{
-			strLongerPaths.push_back(win_text::NarrowUtf8(filePath));
+			longerPaths.emplace_back(win_text::NarrowUtf8(filePath));
 		}
-		else if (EndsWith(wstrShorterExtension))
+		else if (EndsWith(shorterExtension))
 		{
-			strShorterPaths.push_back(win_text::NarrowUtf8(filePath));
+			shorterPaths.emplace_back(win_text::NarrowUtf8(filePath));
 		}
 	}
 }
-/*脚本ファイルの探索と読み込み*/
+/* 脚本ファイルの探索と読み込み */
 bool clst::SearchAndLoadScenarioFile(const std::wstring& wstrAtlasFolderPath, std::vector<adv::TextDatum>& textData, std::vector<std::string>& animationNames)
 {
 	std::wstring wstrVoiceFolderPath = DeriveVoiceFolderPathFromSpineFolderPath(wstrAtlasFolderPath);
@@ -378,14 +368,14 @@ bool clst::SearchAndLoadScenarioFile(const std::wstring& wstrAtlasFolderPath, st
 
 	if (textData.empty())
 	{
-		/*脚本ファイルなし・読み取り失敗*/
+		/* 脚本ファイルなし・読み取り失敗 */
 		std::vector<std::wstring> audioFilePaths;
 		win_filesystem::CreateFilePathList(wstrVoiceFolderPath.c_str(), g_playerSetting.wstrVoiceExtension.c_str(), audioFilePaths);
 
-		for (size_t i = 0; i < audioFilePaths.size(); ++i)
+		for (const auto& audioFilePath : audioFilePaths)
 		{
-			if (audioFilePaths.at(i).at(0) != L'b')continue;
-			textData.emplace_back(adv::TextDatum{ L"", audioFilePaths.at(i) });
+			if (audioFilePath[0] != L'b')continue;
+			textData.emplace_back(adv::TextDatum{ L"", audioFilePath });
 		}
 	}
 

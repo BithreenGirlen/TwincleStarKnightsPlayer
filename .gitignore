@@ -399,5 +399,5 @@ FodyWeavers.xsd
 
 # Dependencies
 **/deps/nlohmann/*
-**/deps/SFML-2.6.1/*
+**/deps/SFML-3.0.2/*
 **/deps/spine-cpp-4.0/*

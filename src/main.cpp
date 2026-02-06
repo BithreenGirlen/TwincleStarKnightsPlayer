@@ -35,11 +35,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	bool bRet = clst::InitialiseSetting();
 	if (!bRet)return 0;
 
-	std::wstring wstrPickedFolder = win_dialogue::SelectWorkFolder(nullptr);
+	std::wstring wstrPickedFolder = win_dialogue::SelectWorkFolder(L"Select Stills/st_XXXXXXXX folder", nullptr);
 	if (!wstrPickedFolder.empty())
 	{
 		CSfmlMainWindow sfmlMainWindow(L"TwinkleStar Player");
-		sfmlMainWindow.SetFont(clst::GetFontFilePath(), true, true);
+		sfmlMainWindow.setFont(clst::GetFontFilePath(), true, true);
 
 		std::vector<std::wstring> folders;
 		size_t nFolderIndex = 0;
@@ -53,15 +53,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 			clst::GetSpineList(wstrFolderPath, atlasPaths, skelPaths);
 			if (skelPaths.empty())break;
 
-			bool bRet = sfmlMainWindow.SetSpineFromFile(atlasPaths, skelPaths, clst::IsSkelBinary());
+			bool bRet = sfmlMainWindow.setSpineFromFile(atlasPaths, skelPaths, clst::IsSkelBinary());
 			if (!bRet)break;
 
 			std::vector<adv::TextDatum> textData;
 			std::vector<std::string> animationNames;
 			clst::SearchAndLoadScenarioFile(wstrFolderPath, textData, animationNames);
-			sfmlMainWindow.SetScenarioData(textData, animationNames);
+			sfmlMainWindow.setScenarioData(textData, animationNames);
 
-			int iRet = sfmlMainWindow.Display();
+			int iRet = sfmlMainWindow.display();
 			if (iRet == 1)
 			{
 				++nFolderIndex;

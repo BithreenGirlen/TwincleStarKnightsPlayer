@@ -54,12 +54,21 @@ class CMfMediaPlayer
 {
 public:
 	CMfMediaPlayer();
-	~CMfMediaPlayer();
+	virtual ~CMfMediaPlayer();
 
 	bool Play(const wchar_t* pwzFilePath);
-	BOOL SwitchLoop();
-	BOOL SwitchMute();
-	BOOL SwitchPause();
+
+	bool SetLoop(bool toLoop);
+	bool IsLooped();
+
+	bool SetMute(bool toMute);
+	bool IsMuted();
+
+	bool SetPause(bool toPause);
+	bool IsPaused();
+
+	bool FrameStep(bool forward);
+
 	double GetCurrentVolume();
 	double GetCurrentRate();
 	long long GetCurrentTimeInMilliSeconds();
@@ -73,24 +82,21 @@ public:
 	virtual bool ResizeBuffer();
 
 	HWND GetRetHwnd()const { return m_hRetWnd; }
-	UINT GetRetMsg() const { return m_uRetMsg; };
+	UINT GetRetMsg() const { return m_uRetMsg; }
 protected:
 	HWND m_hRetWnd = nullptr;
 	UINT m_uRetMsg = 0;
 
 	HRESULT m_hrComInit = E_FAIL;
 	HRESULT m_hrMfStart = E_FAIL;
-	CMfMediaPlayerNotify* m_pmfNotify = nullptr;
-	IMFMediaEngineEx* m_pmfEngineEx = nullptr;
-	IMFAttributes* m_pMfAttributes = nullptr;
 
-	BOOL m_iLoop = FALSE;
-	BOOL m_iMute = FALSE;
-	BOOL m_iPause = FALSE;
+	CMfMediaPlayerNotify* m_pMfNotify = nullptr;
+	IMFMediaEngineEx* m_pMfEngineEx = nullptr;
+	IMFAttributes* m_pMfAttributes = nullptr;
 
 	MFVideoNormalizedRect m_normalisedRect{};
 
-	void WorkOutNormalisedRect(const RECT absoluteRect, MFVideoNormalizedRect* normaisedRect);
+	void WorkOutNormalisedRect(const RECT absoluteRect, MFVideoNormalizedRect* normalisedRect);
 };
 
 #endif // !MF_MEDIA_PLAYER_H_
