@@ -5,10 +5,10 @@
 CSfmlMainWindow::CSfmlMainWindow(const wchar_t* swzWindowName)
 {
 	m_window = std::make_unique<sf::RenderWindow>(sf::VideoMode({ 200, 200 }), swzWindowName, sf::Style::None);
-
 	m_window->setPosition(sf::Vector2i(0, 0));
 
 	m_sfmlSpinePlayer = std::make_unique<CSfmlSpinePlayer>();
+
 	m_spineRenderTexture.setSmooth(true);
 }
 
@@ -39,7 +39,7 @@ bool CSfmlMainWindow::setSpineFromFile(const std::vector<std::string>& atlasPath
 				if (iRet != 0)continue;
 
 				const std::optional<sf::FloatRect>& bgSlotBoundingBox = m_sfmlSpinePlayer->getCurrentBoundingOfSlot(slotName);
-				if (bgSlotBoundingBox && bgSlotBoundingBox->size.x > 1024 && bgSlotBoundingBox->size.y > 768 && bgSlotBoundingBox->size.x > bgSlotBoundingBox->size.y * 1.25f)
+				if (bgSlotBoundingBox && bgSlotBoundingBox->size.x > 1024 && bgSlotBoundingBox->size.y > 704 && bgSlotBoundingBox->size.x > bgSlotBoundingBox->size.y * 1.25f)
 				{
 					m_sfmlSpinePlayer->setBaseSize(bgSlotBoundingBox->size.x, bgSlotBoundingBox->size.y);
 					m_sfmlSpinePlayer->update(0.f);
@@ -74,7 +74,7 @@ void CSfmlMainWindow::setSlotExclusionCallback(bool(*pFunc)(const char*, size_t)
 
 int CSfmlMainWindow::display()
 {
-	resetScale();
+	resetSpinePlayerScale();
 
 	updateMessageText();
 
@@ -133,8 +133,7 @@ int CSfmlMainWindow::display()
 				}
 				else if (event.button == sf::Mouse::Button::Middle)
 				{
-					m_sfmlSpinePlayer->resetScale();
-					resizeWindow();
+					resetSpinePlayerScale();
 				}
 			},
 			[&](const sf::Event::MouseMoved& event)
@@ -289,36 +288,48 @@ int CSfmlMainWindow::display()
 
 void CSfmlMainWindow::resizeWindow()
 {
-	if (m_sfmlSpinePlayer.get() != nullptr)
+	sf::Vector2f fBaseSize = m_sfmlSpinePlayer->getBaseSize();
+	float fScale = m_sfmlSpinePlayer->getCanvasScale();
+
+	unsigned int maxWindowWidth = static_cast<unsigned int>(fBaseSize.x * (fScale - kScaleDelta));
+	unsigned int maxWindowHeight = static_cast<unsigned int>(fBaseSize.y * (fScale - kScaleDelta));
+
+	const sf::Vector2u desktopSize = sf::VideoMode::getDesktopMode().size;
+	/*
+	* Instability of borderless window with max resolution has not been fixed even in SFML 3.0.2
+	* https://github.com/SFML/SFML/issues/1284
+	*/
+	if (maxWindowWidth < desktopSize.x || maxWindowHeight < desktopSize.y)
 	{
-		sf::Vector2f fBaseSize = m_sfmlSpinePlayer->getBaseSize();
-		float fScale = m_sfmlSpinePlayer->getCanvasScale();
+		unsigned int windowWidth = static_cast<unsigned int>(fBaseSize.x * fScale);
+		unsigned int windowHeight = static_cast<unsigned int>(fBaseSize.y * fScale);
 
-		unsigned int maxWindowWidth = static_cast<unsigned int>(fBaseSize.x * (fScale - kScaleDelta));
-		unsigned int maxWindowHeight = static_cast<unsigned int>(fBaseSize.y * (fScale - kScaleDelta));
+		m_window->setSize(sf::Vector2u(windowWidth, windowHeight));
+		m_window->setView(sf::View((fBaseSize * fScale) / 2.f, fBaseSize * fScale));
 
-		const sf::Vector2u &desktopSize = sf::VideoMode::getDesktopMode().size;
-		if (maxWindowWidth < desktopSize.x || maxWindowHeight < desktopSize.y)
-		{
-			unsigned int windowWidth = static_cast<unsigned int>(fBaseSize.x * fScale);
-			unsigned int windowHeight = static_cast<unsigned int>(fBaseSize.y * fScale);
-
-			m_window->setSize(sf::Vector2u(windowWidth, windowHeight));
-			m_window->setView(sf::View((fBaseSize * fScale) / 2.f, fBaseSize * fScale));
-
-			bool bRet = m_spineRenderTexture.resize({ windowWidth, windowHeight });
-		}
-
-		sf::Vector2u windowSize = m_window->getSize();
-		sf::FloatRect bounds = m_helpText->getGlobalBounds();
-		m_helpText->setPosition(sf::Vector2f{ 0, windowSize.y - bounds.size.y });
+		bool bRet = m_spineRenderTexture.resize({ windowWidth, windowHeight });
 	}
+
+	sf::Vector2u windowSize = m_window->getSize();
+	sf::FloatRect bounds = m_helpText->getGlobalBounds();
+	unsigned int helpBottom = (std::min)(desktopSize.y, windowSize.y);
+	m_helpText->setPosition(sf::Vector2f{ 0, helpBottom - bounds.size.y });
 }
 
-void CSfmlMainWindow::resetScale()
+void CSfmlMainWindow::resetSpinePlayerScale()
 {
 	m_sfmlSpinePlayer->resetScale();
-	m_sfmlSpinePlayer->setCanvasScale(m_sfmlSpinePlayer->getSkeletonScale() * 0.9f);
+
+	const sf::Vector2f fBaseSize = m_sfmlSpinePlayer->getBaseSize();
+	const float skeletonScale = m_sfmlSpinePlayer->getSkeletonScale();
+
+	const sf::Vector2u desktopSize = sf::VideoMode::getDesktopMode().size;
+	const bool isLandscape = desktopSize.x > desktopSize.y;
+	const float scale = (isLandscape ? desktopSize.x : desktopSize.y) / (isLandscape ? fBaseSize.x : fBaseSize.y);
+
+	m_sfmlSpinePlayer->setSkeletonScale(scale / 0.945f);
+	m_sfmlSpinePlayer->setCanvasScale(scale);
+
 	resizeWindow();
 }
 
@@ -375,7 +386,7 @@ bool CSfmlMainWindow::setFont(const std::string& strFilePath, bool bold, bool it
 		U"[B] Force blend-mode-normal (* Apply if too-bright)\n"
 		U"[S] Save image\n"
 		U"[↑ | ↓] Open the next/prev. folder\n"
-		U"[← | →; R + scroll] Fast forward/rewind the message\n\n";
+		U"[← | →; R + scroll] Fast forward/rewind the message\n";
 	m_helpText->setString(help);
 
 	return true;
