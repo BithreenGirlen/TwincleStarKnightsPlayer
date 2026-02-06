@@ -40,6 +40,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	{
 		CSfmlMainWindow sfmlMainWindow(L"TwinkleStar Player");
 		sfmlMainWindow.setFont(clst::GetFontFilePath(), true, true);
+		sfmlMainWindow.getWindow()->setFramerateLimit([]()
+			-> unsigned long
+			{
+				DEVMODE devMode{};
+				::EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &devMode);
+				return devMode.dmDisplayFrequency;
+			}());
 
 		std::vector<std::wstring> folders;
 		size_t nFolderIndex = 0;
