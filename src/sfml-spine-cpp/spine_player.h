@@ -47,24 +47,35 @@ public:
 	/// @brief Toggle the state of all drawables
 	void togglePma();
 	void toggleBlendModeAdoption();
-
-	/// @return current state. If it were out of range, return false.
-	bool isAlphaPremultiplied(size_t nDrawableIndex = 0);
-	bool isBlendModeNormalForced(size_t nDrawableIndex = 0);
-	bool isDrawOrderReversed() const noexcept;
+	void togglePause();
+	void toggleVisibility();
 
 	/// @return false if it were out of range.
 	bool premultiplyAlpha(bool premultiplied, size_t nDrawableIndex = 0);
-	bool forceBlendModeNormal(bool toForce, size_t nDrawableIndex = 0);
-	void setDrawOrder(bool reversed);
+	/// @return current state. If it were out of range, return false.
+	bool isAlphaPremultiplied(size_t nDrawableIndex = 0);
 
+	bool forceBlendModeNormal(bool toForce, size_t nDrawableIndex = 0);
+	bool isBlendModeNormalForced(size_t nDrawableIndex = 0);
+
+	bool setPause(bool paused, size_t nDrawableIndex = 0);
+	bool isPaused(size_t nDrawableIndex = 0);
+
+	bool setVisibility(bool visible, size_t nDrawableIndex = 0);
+	bool isVisible(size_t nDrawableIndex = 0);
+
+	void setDrawOrder(bool reversed);
+	bool isDrawOrderReversed() const noexcept;
+
+	/// @brief Get animation name actually entried in the track.
 	const char* getCurrentAnimationName();
-	/// @brief Get animation time actually entried in track.
+	/// @brief Get animation time actually entried in the track.
 	/// @param fTrack elapsed time since the track was entried.
 	/// @param fLast current timeline position.
 	/// @param fStart timeline start position.
 	/// @param fEnd timeline end position.
 	void getCurrentAnimationTime(float* fTrack, float* fLast, float* fStart, float* fEnd);
+	void setCurrentAnimationTime(float animationTime);
 	float getAnimationDuration(const char* animationName);
 
 	const std::vector<std::string>& getSlotNames() const noexcept;

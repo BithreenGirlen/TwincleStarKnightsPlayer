@@ -11,7 +11,8 @@ public:
 
 	void redraw(sf::RenderTarget* pRenderTarget);
 
-	std::optional<sf::FloatRect> getCurrentBoundingOfSlot(std::string_view slotName) const;
+	sf::FloatRect getCurrentBoundingBox() const;
+	std::optional<sf::FloatRect> getCurrentBoundingBoxOfSlot(std::string_view slotName) const;
 private:
 	void workOutDefaultScale() override;
 	void workOutDefaultOffset() override;

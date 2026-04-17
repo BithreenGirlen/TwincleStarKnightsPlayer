@@ -95,17 +95,39 @@ bool CSfmlSpineDrawable::isBlendModeNormalForced() const noexcept
 	return m_isToForceBlendModeNormal;
 }
 
+void CSfmlSpineDrawable::setPause(bool paused) noexcept
+{
+	m_isPaused = paused;
+}
+
+bool CSfmlSpineDrawable::isPaused() const noexcept
+{
+	return m_isPaused;
+}
+
+void CSfmlSpineDrawable::setVisibility(bool visible) noexcept
+{
+	m_isVisible = visible;
+}
+
+bool CSfmlSpineDrawable::isVisible() const noexcept
+{
+	return m_isVisible;
+}
+
 void CSfmlSpineDrawable::update(float fDelta)
 {
 	if (m_skeleton != nullptr && m_animationState != nullptr)
 	{
-#ifndef SPINE_4_1_OR_LATER
-		m_skeleton->update(fDelta);
-#endif
-		m_animationState->update(fDelta);
+		if (!m_isPaused)m_animationState->update(fDelta);
 		m_animationState->apply(*m_skeleton);
+
+		/* Spine 4.1 does not have Skeleton::update() */
+#if !defined(SPINE_4_1_OR_LATER) || defined (SPINE_4_2_OR_LATER)
+		if (!m_isPaused)m_skeleton->update(fDelta);
+#endif
+
 #ifdef SPINE_4_2_OR_LATER
-		m_skeleton->update(fDelta);
 		m_skeleton->updateWorldTransform(spine::Physics::Physics_Update);
 #else
 		m_skeleton->updateWorldTransform();
@@ -115,9 +137,9 @@ void CSfmlSpineDrawable::update(float fDelta)
 
 void CSfmlSpineDrawable::draw(sf::RenderTarget& renderTarget, sf::RenderStates renderStates) const
 {
+	if (!m_isVisible)return;
 	if (m_skeleton == nullptr || m_animationState == nullptr)return;
-
-	if (m_skeleton->getColor().a == 0) return;
+	if (m_skeleton->getColor().a == 0)return;
 
 	for (unsigned i = 0; i < m_skeleton->getSlots().size(); ++i)
 	{

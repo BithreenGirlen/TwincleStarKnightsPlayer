@@ -42,7 +42,26 @@ void CSfmlSpinePlayer::redraw(sf::RenderTarget* pRenderTarget)
 	}
 }
 
-std::optional<sf::FloatRect> CSfmlSpinePlayer::getCurrentBoundingOfSlot(std::string_view slotName) const
+sf::FloatRect CSfmlSpinePlayer::getCurrentBoundingBox() const
+{
+	float fMinX = std::numeric_limits<float>::max();
+	float fMinY = std::numeric_limits<float>::max();
+	float fMaxX = std::numeric_limits<float>::lowest();
+	float fMaxY = std::numeric_limits<float>::lowest();
+
+	for (const auto& drawable : m_drawables)
+	{
+		const sf::FloatRect rect = drawable->getBoundingBox();
+		fMinX = (std::min)(fMinX, rect.position.x);
+		fMinY = (std::min)(fMinY, rect.position.y);
+		fMaxX = (std::max)(fMaxX, rect.position.x + rect.size.x);
+		fMaxY = (std::max)(fMaxY, rect.position.y + rect.size.y);
+	}
+
+	return { {fMinX, fMinY}, {fMaxX - fMinX, fMaxY - fMinY} };
+}
+
+std::optional<sf::FloatRect> CSfmlSpinePlayer::getCurrentBoundingBoxOfSlot(std::string_view slotName) const
 {
 	bool found = false;
 	for (const auto& drawable : m_drawables)
@@ -56,38 +75,30 @@ std::optional<sf::FloatRect> CSfmlSpinePlayer::getCurrentBoundingOfSlot(std::str
 
 	return std::nullopt;
 }
-/*標準尺度算出*/
+
 void CSfmlSpinePlayer::workOutDefaultScale()
 {
 	m_fDefaultScale = 1.f;
 
-	unsigned int uiSkeletonWidth = static_cast<unsigned int>(m_fBaseSize.x);
-	unsigned int uiSkeletonHeight = static_cast<unsigned int>(m_fBaseSize.y);
+	unsigned int skeletonWidth = static_cast<unsigned int>(m_fBaseSize.x);
+	unsigned int skeletonHeight = static_cast<unsigned int>(m_fBaseSize.y);
 
-	unsigned int uiDesktopWidth = sf::VideoMode::getDesktopMode().size.x;
-	unsigned int uiDesktopHeight = sf::VideoMode::getDesktopMode().size.y;
+	unsigned int displayWidth = sf::VideoMode::getDesktopMode().size.x;
+	unsigned int displayHeight = sf::VideoMode::getDesktopMode().size.y;
 
-	if (uiSkeletonWidth > uiDesktopWidth || uiSkeletonHeight > uiDesktopHeight)
+	if (skeletonWidth > displayWidth || skeletonHeight > displayHeight)
 	{
-		float fScaleX = static_cast<float>(uiDesktopWidth) / uiSkeletonWidth;
-		float fScaleY = static_cast<float>(uiDesktopHeight) / uiSkeletonHeight;
+		float fScaleX = static_cast<float>(displayWidth) / skeletonWidth;
+		float fScaleY = static_cast<float>(displayHeight) / skeletonHeight;
 
-		if (uiDesktopWidth > uiDesktopHeight)
-		{
-			m_fDefaultScale = static_cast<float>(uiDesktopHeight) / uiSkeletonHeight;
-		}
-		else
-		{
-			m_fDefaultScale = static_cast<float>(uiDesktopWidth) / uiSkeletonWidth;
-		}
-		m_fSkeletonScale = m_fDefaultScale;
+		m_fDefaultScale = fScaleX > fScaleY ? fScaleY : fScaleX;
 	}
 }
 
 void CSfmlSpinePlayer::workOutDefaultOffset()
 {
-	float fMinX = FLT_MAX;
-	float fMinY = FLT_MAX;
+	float fMinX = std::numeric_limits<float>::max();
+	float fMinY = std::numeric_limits<float>::max();
 
 	for (const auto& pDrawable : m_drawables)
 	{

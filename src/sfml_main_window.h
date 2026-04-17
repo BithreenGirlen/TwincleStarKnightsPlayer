@@ -32,7 +32,9 @@ private:
 	sf::RenderTexture m_spineRenderTexture;
 
 	void resizeWindow();
+
 	void resetSpinePlayerScale();
+	void setSpinePlayerSize();
 
 	bool saveCurrentFrameImage();
 

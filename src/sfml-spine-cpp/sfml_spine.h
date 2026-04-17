@@ -19,6 +19,14 @@ public:
 	void forceBlendModeNormal(bool toForce) noexcept;
 	bool isBlendModeNormalForced() const noexcept;
 
+	void setPause(bool paused) noexcept;
+	bool isPaused() const noexcept;
+
+	void setVisibility(bool visible) noexcept;
+	bool isVisible() const noexcept;
+
+	/// @brief Add animation time and update world transform.
+	/// @remark Even if it is paused or 0.0f is passed, world transform will be updated.
 	void update(float fDelta);
 	void draw(sf::RenderTarget& renderTarget, sf::RenderStates renderStates) const override;
 
@@ -31,6 +39,8 @@ private:
 	bool m_hasOwnAnimationStateData = false;
 	mutable bool m_isAlphaPremultiplied = true;
 	bool m_isToForceBlendModeNormal = false;
+	bool m_isVisible = true;
+	bool m_isPaused = false;
 
 	spine::Skeleton* m_skeleton = nullptr;
 	spine::AnimationState* m_animationState = nullptr;

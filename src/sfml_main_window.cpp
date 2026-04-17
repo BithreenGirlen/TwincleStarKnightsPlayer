@@ -23,40 +23,7 @@ bool CSfmlMainWindow::setSpineFromFile(const std::vector<std::string>& atlasFile
 	bool bRet = m_sfmlSpinePlayer->loadSpineFromFile(atlasFilePaths, skelFilePaths, isBinarySkel);
 	if (bRet)
 	{
-		/* Fit the size of spine player to the slot which is assumed to be background. */
-		const std::vector<std::string>& slotNames = m_sfmlSpinePlayer->getSlotNames();
-		if (!slotNames.empty())
-		{
-			for (size_t i = 0; i < slotNames.size() || i < 3; ++i)
-			{
-				const auto& slotName = slotNames[i];
-				static constexpr const char bgSlotPrefix[] = "bg";
-				static constexpr size_t bgPrefixLength = sizeof(bgSlotPrefix) - 1;
-#ifdef _WIN32
-				int iRet = _strnicmp(slotName.c_str(), bgSlotPrefix, bgPrefixLength);
-#else
-				int iRet = strncasecmp(slotName.c_str(), bgSlotPrefix, bgPrefixLength);
-#endif
-				if (iRet != 0)continue;
-
-				const std::optional<sf::FloatRect>& bgSlotBoundingBox = m_sfmlSpinePlayer->getCurrentBoundingOfSlot(slotName);
-				if (bgSlotBoundingBox && bgSlotBoundingBox->size.x > 1024 && bgSlotBoundingBox->size.y > 704 && bgSlotBoundingBox->size.x > bgSlotBoundingBox->size.y * 1.25f)
-				{
-					m_sfmlSpinePlayer->setBaseSize(bgSlotBoundingBox->size.x, bgSlotBoundingBox->size.y);
-					m_sfmlSpinePlayer->update(0.f);
-					const auto& updatedSlotBounding = m_sfmlSpinePlayer->getCurrentBoundingOfSlot(slotName);
-					if (updatedSlotBounding)
-					{
-						auto offsetToBe = m_sfmlSpinePlayer->getOffset();
-						offsetToBe.x += updatedSlotBounding->position.x;
-						offsetToBe.y += updatedSlotBounding->position.y;
-						m_sfmlSpinePlayer->setOffset(offsetToBe.x, offsetToBe.y);
-						m_sfmlSpinePlayer->setBaseSize(bgSlotBoundingBox->size.x, bgSlotBoundingBox->size.y);
-						break;
-					}
-				}
-			}
-		}
+		setSpinePlayerSize();
 
 		/* Filename including extension. */
 		size_t nPos = atlasFilePaths[0].find_last_of("\\/");
@@ -328,10 +295,19 @@ void CSfmlMainWindow::resetSpinePlayerScale()
 	const bool isLandscape = desktopSize.x > desktopSize.y;
 	const float scale = (isLandscape ? desktopSize.x : desktopSize.y) / (isLandscape ? fBaseSize.x : fBaseSize.y);
 
-	m_sfmlSpinePlayer->setSkeletonScale(scale / 0.945f);
+	m_sfmlSpinePlayer->setSkeletonScale(scale * 1.25f);
 	m_sfmlSpinePlayer->setCanvasScale(scale);
 
 	resizeWindow();
+}
+
+void CSfmlMainWindow::setSpinePlayerSize()
+{
+	if (m_sfmlSpinePlayer != nullptr)
+	{
+		m_sfmlSpinePlayer->setOffset(0, 0);
+		m_sfmlSpinePlayer->setBaseSize(1610.f, 940.f);
+	}
 }
 
 bool CSfmlMainWindow::saveCurrentFrameImage()
