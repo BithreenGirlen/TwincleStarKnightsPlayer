@@ -12,10 +12,10 @@
 class CSfmlMainWindow
 {
 public:
-	CSfmlMainWindow(const wchar_t* swzWindowName = nullptr);
+	CSfmlMainWindow(const char32_t* windowName = nullptr);
 	~CSfmlMainWindow();
 
-	bool setSpineFromFile(const std::vector<std::string>& atlasPaths, const std::vector<std::string>& skelPaths, bool isBinarySkel);
+	bool setSpineFromFile(const std::vector<std::string>& atlasFilePaths, const std::vector<std::string>& skelFilePaths, bool isBinarySkel);
 
 	void setSlotExclusionCallback(bool (*pFunc)(const char*, size_t));
 
@@ -38,7 +38,7 @@ private:
 
 	/*文章表示用*/
 public:
-	bool setFont(const std::string& strFilePath, bool bold, bool italic);
+	bool setFont(const std::string& fontFilePath, bool bold, bool italic);
 	void setScenarioData(std::vector<adv::TextDatum>& textData, std::vector<std::string>& animationNames);
 private:
 	sf::Font m_font;

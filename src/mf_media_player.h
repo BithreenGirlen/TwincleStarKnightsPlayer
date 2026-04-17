@@ -9,6 +9,7 @@ class CMfMediaPlayerNotify : public IMFMediaEngineNotify
 public:
 	CMfMediaPlayerNotify(void* pMediaPlayer);
 	~CMfMediaPlayerNotify();
+
 	STDMETHODIMP QueryInterface(REFIID riid, void** ppv)
 	{
 		if (riid == __uuidof(IMFMediaEngineNotify))
@@ -31,7 +32,7 @@ public:
 		}
 		else
 		{
-			OnMediaEngineEvent(Event, param1, param2);
+			onMediaEngineEvent(Event, param1, param2);
 		}
 		return S_OK;
 	}
@@ -45,9 +46,9 @@ public:
 
 private:
 	LONG m_lRef = 0;
-	void* m_pPlayer = nullptr;
+	void* m_pMediaPlayer = nullptr;
 
-	void OnMediaEngineEvent(DWORD Event, DWORD_PTR param1, DWORD param2);
+	void onMediaEngineEvent(DWORD Event, DWORD_PTR param1, DWORD param2);
 };
 
 class CMfMediaPlayer
@@ -56,33 +57,38 @@ public:
 	CMfMediaPlayer();
 	virtual ~CMfMediaPlayer();
 
-	bool Play(const wchar_t* pwzFilePath);
+	bool play(const wchar_t* filePath);
 
-	bool SetLoop(bool toLoop);
-	bool IsLooped();
+	bool setLoop(bool looped);
+	bool isLooped();
 
-	bool SetMute(bool toMute);
-	bool IsMuted();
+	bool setMute(bool muted);
+	bool isMuted();
 
-	bool SetPause(bool toPause);
-	bool IsPaused();
+	bool setPause(bool paused);
+	bool isPaused();
 
-	bool FrameStep(bool forward);
+	bool isEnded();
 
-	double GetCurrentVolume();
-	double GetCurrentRate();
-	long long GetCurrentTimeInMilliSeconds();
-	bool SetCurrentVolume(double dbVolume);
-	bool SetCurrentRate(double dbRate);
-	bool IsEnded();
+	/// @brief Step one frame forward/backward
+	bool frameStep(bool forward);
 
-	virtual bool SetPlaybackWindow(HWND hWnd, UINT uMsg = 0);
-	bool GetVideoSize(DWORD* dwWidth, DWORD* dwHeight);
-	void SetDisplayArea(const RECT absoluteRect);
-	virtual bool ResizeBuffer();
+	bool setCurrentVolume(double dbVolume);
+	double getCurrentVolume();
 
-	HWND GetRetHwnd()const { return m_hRetWnd; }
-	UINT GetRetMsg() const { return m_uRetMsg; }
+	bool setCurrentRate(double dbRate);
+	double getCurrentRate();
+
+	long long getCurrentTimeInMilliSeconds();
+
+	/// @brief Set window and message code to receive event notification.
+	virtual bool setPlaybackWindow(HWND hWnd, UINT uMsg = 0);
+	bool getVideoSize(DWORD* dwWidth, DWORD* dwHeight);
+	void setDisplayArea(const RECT absoluteRect);
+	virtual bool resizeBuffer();
+
+	HWND getRetHwnd()const { return m_hRetWnd; }
+	UINT getRetMsg() const { return m_uRetMsg; }
 protected:
 	HWND m_hRetWnd = nullptr;
 	UINT m_uRetMsg = 0;
@@ -96,7 +102,7 @@ protected:
 
 	MFVideoNormalizedRect m_normalisedRect{};
 
-	void WorkOutNormalisedRect(const RECT absoluteRect, MFVideoNormalizedRect* normalisedRect);
+	void workOutNormalisedRect(const RECT absoluteRect, MFVideoNormalizedRect* normalisedRect);
 };
 
 #endif // !MF_MEDIA_PLAYER_H_

@@ -12,8 +12,8 @@ namespace clst
 	const std::string& GetFontFilePath();
 	bool IsSkelBinary();
 
-	void GetSpineList(const std::wstring& wstrFolderPath, std::vector<std::string>& atlasPaths, std::vector<std::string>& skelPaths);
+	void GetSpineList(const std::wstring& spineFolderPath, std::vector<std::string>& atlasFilePaths, std::vector<std::string>& skelFilePaths);
 
-	bool SearchAndLoadScenarioFile(const std::wstring& wstrAtlasFolderPath, std::vector<adv::TextDatum>& textData, std::vector<std::string>& animationNames);
+	bool SearchAndLoadScenarioFile(const std::wstring& stillSpineFolderPath, std::vector<adv::TextDatum>& textData, std::vector<std::string>& animationNames);
 }
 #endif // !CLST_H_

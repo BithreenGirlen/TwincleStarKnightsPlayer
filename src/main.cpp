@@ -6,7 +6,7 @@
 
 #include <locale.h>
 
-/*SFML*/
+/* SFML */
 #pragma comment(lib, "opengl32.lib")
 #pragma comment(lib, "winmm.lib")
 
@@ -18,7 +18,7 @@
 #pragma comment(lib, "sfml-system.lib")
 #pragma comment(lib, "sfml-graphics.lib")
 #pragma comment(lib, "sfml-window.lib")
-#endif // _DEBUG
+#endif
 
 #include "win_dialogue.h"
 #include "win_filesystem.h"
@@ -35,54 +35,56 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	bool bRet = clst::InitialiseSetting();
 	if (!bRet)return 0;
 
-	std::wstring wstrPickedFolder = win_dialogue::SelectWorkFolder(L"Select Stills/st_XXXXXXXX folder", nullptr);
-	if (!wstrPickedFolder.empty())
+	std::wstring selectedFolderPath = win_dialogue::SelectFolder(L"Select Stills/st_XXXXXXXX folder", nullptr);
+	if (selectedFolderPath.empty())return 0;
+
+	std::vector<std::wstring> folderPaths;
+	size_t nFolderPathIndex = 0;
+	if (size_t nPos = selectedFolderPath.find_last_of(L"\\/"); nPos != std::wstring::npos)
 	{
-		CSfmlMainWindow sfmlMainWindow(L"TwinkleStar Player");
-		sfmlMainWindow.setFont(clst::GetFontFilePath(), true, true);
-		sfmlMainWindow.getWindow()->setFramerateLimit([]()
-			-> unsigned long
-			{
-				DEVMODE devMode{};
-				::EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &devMode);
-				return devMode.dmDisplayFrequency;
-			}());
-
-		std::vector<std::wstring> folders;
-		size_t nFolderIndex = 0;
-		win_filesystem::GetFilePathListAndIndex(wstrPickedFolder, nullptr, folders, &nFolderIndex);
-		for (;;)
+		std::wstring_view parentFolderPath(&selectedFolderPath[0], nPos);
+		win_filesystem::CreateFilePathList(parentFolderPath, {}, folderPaths);
+		if (const auto& iter = std::find(folderPaths.begin(), folderPaths.end(), selectedFolderPath); iter != folderPaths.cend())
 		{
-			std::wstring wstrFolderPath = folders.at(nFolderIndex);
+			nFolderPathIndex = std::distance(folderPaths.begin(), iter);
+		}
+	}
+	if (folderPaths.empty())return 0;
 
-			std::vector<std::string> atlasPaths;
-			std::vector<std::string> skelPaths;
-			clst::GetSpineList(wstrFolderPath, atlasPaths, skelPaths);
-			if (skelPaths.empty())break;
+	CSfmlMainWindow sfmlMainWindow(U"TwinkleStar Player");
+	sfmlMainWindow.setFont(clst::GetFontFilePath(), true, true);
 
-			bool bRet = sfmlMainWindow.setSpineFromFile(atlasPaths, skelPaths, clst::IsSkelBinary());
-			if (!bRet)break;
+	for (;;)
+	{
+		const std::wstring& folderPath = folderPaths[nFolderPathIndex];
 
-			std::vector<adv::TextDatum> textData;
-			std::vector<std::string> animationNames;
-			clst::SearchAndLoadScenarioFile(wstrFolderPath, textData, animationNames);
-			sfmlMainWindow.setScenarioData(textData, animationNames);
+		std::vector<std::string> atlasFilePaths;
+		std::vector<std::string> skelFilePaths;
+		clst::GetSpineList(folderPath, atlasFilePaths, skelFilePaths);
+		if (skelFilePaths.empty())break;
 
-			int iRet = sfmlMainWindow.display();
-			if (iRet == 1)
-			{
-				++nFolderIndex;
-				if (nFolderIndex > folders.size() - 1)nFolderIndex = 0;
-			}
-			else if (iRet == 2)
-			{
-				--nFolderIndex;
-				if (nFolderIndex > folders.size() - 1)nFolderIndex = folders.size() - 1;
-			}
-			else
-			{
-				break;
-			}
+		bool bRet = sfmlMainWindow.setSpineFromFile(atlasFilePaths, skelFilePaths, clst::IsSkelBinary());
+		if (!bRet)break;
+
+		std::vector<adv::TextDatum> textData;
+		std::vector<std::string> animationNames;
+		clst::SearchAndLoadScenarioFile(folderPath, textData, animationNames);
+		sfmlMainWindow.setScenarioData(textData, animationNames);
+
+		int iRet = sfmlMainWindow.display();
+		if (iRet == 1)
+		{
+			++nFolderPathIndex;
+			if (nFolderPathIndex > folderPaths.size() - 1)nFolderPathIndex = 0;
+		}
+		else if (iRet == 2)
+		{
+			--nFolderPathIndex;
+			if (nFolderPathIndex > folderPaths.size() - 1)nFolderPathIndex = folderPaths.size() - 1;
+		}
+		else
+		{
+			break;
 		}
 	}
 

@@ -2,10 +2,11 @@
 
 #include "sfml_main_window.h"
 
-CSfmlMainWindow::CSfmlMainWindow(const wchar_t* swzWindowName)
+CSfmlMainWindow::CSfmlMainWindow(const char32_t* windowName)
 {
-	m_window = std::make_unique<sf::RenderWindow>(sf::VideoMode({ 200, 200 }), swzWindowName, sf::Style::None);
+	m_window = std::make_unique<sf::RenderWindow>(sf::VideoMode({ 200, 200 }), windowName, sf::Style::None);
 	m_window->setPosition(sf::Vector2i(0, 0));
+	m_window->setVerticalSyncEnabled(true);
 
 	m_sfmlSpinePlayer = std::make_unique<CSfmlSpinePlayer>();
 
@@ -17,9 +18,9 @@ CSfmlMainWindow::~CSfmlMainWindow()
 
 }
 
-bool CSfmlMainWindow::setSpineFromFile(const std::vector<std::string>& atlasPaths, const std::vector<std::string>& skelPaths, bool isBinarySkel)
+bool CSfmlMainWindow::setSpineFromFile(const std::vector<std::string>& atlasFilePaths, const std::vector<std::string>& skelFilePaths, bool isBinarySkel)
 {
-	bool bRet = m_sfmlSpinePlayer->loadSpineFromFile(atlasPaths, skelPaths, isBinarySkel);
+	bool bRet = m_sfmlSpinePlayer->loadSpineFromFile(atlasFilePaths, skelFilePaths, isBinarySkel);
 	if (bRet)
 	{
 		/* Fit the size of spine player to the slot which is assumed to be background. */
@@ -58,10 +59,10 @@ bool CSfmlMainWindow::setSpineFromFile(const std::vector<std::string>& atlasPath
 		}
 
 		/* Filename including extension. */
-		size_t nPos = atlasPaths[0].find_last_of("\\/");
+		size_t nPos = atlasFilePaths[0].find_last_of("\\/");
 		if (nPos == std::string::npos)nPos = 0;
 		else ++nPos;
-		m_window->setTitle(&atlasPaths[0][nPos]);
+		m_window->setTitle(&atlasFilePaths[0][nPos]);
 	}
 
 	return bRet;
@@ -78,11 +79,11 @@ int CSfmlMainWindow::display()
 
 	updateMessageText();
 
-	sf::Vector2i iMouseStartPos;
+	sf::Vector2i lastMousePos;
 
-	bool toMoveWIndow = false;
+	bool toMoveWindow = false;
 	bool wasLeftPressed = false;
-	bool wasLeftCombinated = false;
+	bool wasLeftCombined = false;
 
 	int iRet = 0;
 
@@ -99,7 +100,7 @@ int CSfmlMainWindow::display()
 			{
 				if (event.button == sf::Mouse::Button::Left)
 				{
-					iMouseStartPos = event.position;
+					lastMousePos = event.position;
 
 					wasLeftPressed = true;
 				}
@@ -108,21 +109,21 @@ int CSfmlMainWindow::display()
 			{
 				if (event.button == sf::Mouse::Button::Left)
 				{
-					if (wasLeftCombinated)
+					if (wasLeftCombined)
 					{
-						wasLeftCombinated = false;
+						wasLeftCombined = false;
 						wasLeftPressed = false;
 						return;
 					}
 
-					if (toMoveWIndow || sf::Mouse::isButtonPressed(sf::Mouse::Button::Right))
+					if (toMoveWindow || sf::Mouse::isButtonPressed(sf::Mouse::Button::Right))
 					{
-						toMoveWIndow ^= true;
+						toMoveWindow ^= true;
 						return;
 					}
 
-					int iX = iMouseStartPos.x - event.position.x;
-					int iY = iMouseStartPos.y - event.position.y;
+					int iX = lastMousePos.x - event.position.x;
+					int iY = lastMousePos.y - event.position.y;
 
 					if (iX == 0 && iY == 0)
 					{
@@ -142,13 +143,13 @@ int CSfmlMainWindow::display()
 				{
 					if (wasLeftPressed)
 					{
-						int iX = iMouseStartPos.x - event.position.x;
-						int iY = iMouseStartPos.y - event.position.y;
+						int iX = lastMousePos.x - event.position.x;
+						int iY = lastMousePos.y - event.position.y;
 						m_sfmlSpinePlayer->addOffset(iX, iY);
 
-						iMouseStartPos = event.position;
+						lastMousePos = event.position;
 
-						wasLeftCombinated = true;
+						wasLeftCombined = true;
 					}
 				}
 			},
@@ -163,7 +164,7 @@ int CSfmlMainWindow::display()
 					timeScale = (std::max)(timeScale, 0.f);
 					m_sfmlSpinePlayer->setTimeScale(timeScale);
 
-					wasLeftCombinated = true;
+					wasLeftCombined = true;
 				}
 				else if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Right))
 				{
@@ -275,7 +276,7 @@ int CSfmlMainWindow::display()
 
 		checkTimer();
 
-		if (toMoveWIndow)
+		if (toMoveWindow)
 		{
 			int iPosX = sf::Mouse::getPosition().x - m_window->getSize().x / 2;
 			int iPosY = sf::Mouse::getPosition().y - m_window->getSize().y / 2;
@@ -291,8 +292,8 @@ void CSfmlMainWindow::resizeWindow()
 	sf::Vector2f fBaseSize = m_sfmlSpinePlayer->getBaseSize();
 	float fScale = m_sfmlSpinePlayer->getCanvasScale();
 
-	unsigned int maxWindowWidth = static_cast<unsigned int>(fBaseSize.x * (fScale - kScaleDelta));
-	unsigned int maxWindowHeight = static_cast<unsigned int>(fBaseSize.y * (fScale - kScaleDelta));
+	const unsigned int maxWindowWidth = static_cast<unsigned int>(fBaseSize.x * (fScale - kScaleDelta));
+	const unsigned int maxWindowHeight = static_cast<unsigned int>(fBaseSize.y * (fScale - kScaleDelta));
 
 	const sf::Vector2u desktopSize = sf::VideoMode::getDesktopMode().size;
 	/*
@@ -301,8 +302,8 @@ void CSfmlMainWindow::resizeWindow()
 	*/
 	if (maxWindowWidth < desktopSize.x || maxWindowHeight < desktopSize.y)
 	{
-		unsigned int windowWidth = static_cast<unsigned int>(fBaseSize.x * fScale);
-		unsigned int windowHeight = static_cast<unsigned int>(fBaseSize.y * fScale);
+		const unsigned int windowWidth = static_cast<unsigned int>(fBaseSize.x * fScale);
+		const unsigned int windowHeight = static_cast<unsigned int>(fBaseSize.y * fScale);
 
 		m_window->setSize(sf::Vector2u(windowWidth, windowHeight));
 		m_window->setView(sf::View((fBaseSize * fScale) / 2.f, fBaseSize * fScale));
@@ -339,23 +340,21 @@ bool CSfmlMainWindow::saveCurrentFrameImage()
 
 	float fTrackTime = 0.f;
 	m_sfmlSpinePlayer->getCurrentAnimationTime(&fTrackTime, nullptr, nullptr, nullptr);
-	const char* pzAnimationName = m_sfmlSpinePlayer->getCurrentAnimationName();
-	if (pzAnimationName == nullptr)return false;
+	const char* pAnimationName = m_sfmlSpinePlayer->getCurrentAnimationName();
+	if (pAnimationName == nullptr)return false;
 
-	std::string strFilePath = pzAnimationName;
-	char sBuffer[16]{};
-	sprintf_s(sBuffer, "_%.3f.png", fTrackTime);
-	strFilePath += sBuffer;
+	char sBuffer[512]{};
+	sprintf_s(sBuffer, "%s_%.3f.png", pAnimationName, fTrackTime);
 
 	sf::Texture texture = m_spineRenderTexture.getTexture();
 	sf::Image image = texture.copyToImage();
 
-	return image.saveToFile(strFilePath);
+	return image.saveToFile(sBuffer);
 }
 /*字体設定*/
-bool CSfmlMainWindow::setFont(const std::string& strFilePath, bool bold, bool italic)
+bool CSfmlMainWindow::setFont(const std::string& fontFilePath, bool bold, bool italic)
 {
-	bool bRet = m_font.openFromFile(strFilePath);
+	bool bRet = m_font.openFromFile(fontFilePath);
 	if (!bRet)return false;
 
 	static constexpr unsigned int fontSize = 42;
@@ -398,7 +397,7 @@ void CSfmlMainWindow::setScenarioData(std::vector<adv::TextDatum>& textData, std
 	m_animationNames = std::move(animationNames);
 
 	m_nTextIndex = 0;
-	m_msgText->setString("");
+	m_msgText->setString(U"");
 	m_nLastAnimationIndex = 0;
 
 	const auto HasAudio = [](const adv::TextDatum& text)
@@ -439,7 +438,7 @@ void CSfmlMainWindow::checkTimer()
 {
 	constexpr float fAutoPlayInterval = 2.f;
 	float fSecond = m_textClock.getElapsedTime().asSeconds();
-	if (m_pAudioPlayer.get() != nullptr && m_pAudioPlayer.get()->IsEnded() && fSecond > fAutoPlayInterval)
+	if (m_pAudioPlayer.get() != nullptr && m_pAudioPlayer.get()->isEnded() && fSecond > fAutoPlayInterval)
 	{
 		if (m_nTextIndex < m_textData.size() - 1)
 		{
@@ -471,20 +470,29 @@ void CSfmlMainWindow::updateMessageText()
 {
 	if (m_textData.empty())return;
 
-	const adv::TextDatum& textDatum = m_textData.at(m_nTextIndex);
-	std::wstring wstr = textDatum.wstrText;
+	const adv::TextDatum& textDatum = m_textData[m_nTextIndex];
+	std::wstring message;
 
-	static constexpr size_t kLineThreashold = 30;
-	for (size_t i = kLineThreashold; i < wstr.size(); i += kLineThreashold)
+	static constexpr size_t kCountToBreak = 30;
+	const size_t originalLength = textDatum.wstrText.length();
+	size_t nWritten = 0;
+	if (size_t nPos = textDatum.wstrText.find(L'\n'); nPos != std::wstring::npos)
 	{
-		wstr.insert(i, L"\n");
+		++nPos;
+		message.append(textDatum.wstrText, nWritten, nPos);
+		nWritten += nPos;
 	}
-	if (!wstr.empty() && wstr.back() != L'\n') wstr += L"\n ";
+	for (; nWritten < originalLength; nWritten += kCountToBreak)
+	{
+		const size_t nCountToWrite = (std::min)(kCountToBreak, originalLength - nWritten);
+		message.append(textDatum.wstrText, nWritten, nCountToWrite);
+		message += L'\n';
+	}
 
 	wchar_t sBuffer[64]{}; /* size_t is 20 digits at most. */
 	swprintf(sBuffer, L"%zu/%zu", m_nTextIndex + 1, m_textData.size());
-	wstr += sBuffer;
-	m_msgText->setString(wstr);
+	message += sBuffer;
+	m_msgText->setString(message);
 
 	/* Checks if animation has to be switched or not. */
 	if (m_nTextIndex == 0 || (m_nLastAnimationIndex != textDatum.nAnimationIndex))
@@ -500,7 +508,7 @@ void CSfmlMainWindow::updateMessageText()
 	{
 		if (m_pAudioPlayer.get() != nullptr)
 		{
-			m_pAudioPlayer->Play(textDatum.wstrVoicePath.c_str());
+			m_pAudioPlayer->play(textDatum.wstrVoicePath.c_str());
 		}
 	}
 	m_textClock.restart();

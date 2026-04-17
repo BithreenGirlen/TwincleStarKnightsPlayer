@@ -98,3 +98,13 @@ std::string win_text::NarrowAnsi(const wchar_t* wstr, int length)
 {
     return Narrow(wstr, length, CCodePage::kAnsi);
 }
+
+int win_text::WidenUtf8Static(const char* str, int length, wchar_t* dst, int dstSize)
+{
+    return ::MultiByteToWideChar(CP_UTF8, 0, str, length, dst, dstSize);
+}
+
+int win_text::NarrowUtf8Static(const wchar_t* wstr, int length, char* dst, int dstSize)
+{
+    return ::WideCharToMultiByte(CP_UTF8, 0, wstr, length, dst, dstSize, nullptr, nullptr);
+}
