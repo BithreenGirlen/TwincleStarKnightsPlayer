@@ -14,19 +14,20 @@ namespace win_dialogue
 	};
 }
 
-std::wstring win_dialogue::SelectFolder(const wchar_t* title, void* hParentWnd)
+std::wstring win_dialogue::SelectFolder(const wchar_t* title, void* hOwnerWnd)
 {
 	ComInit comInit;
 	CComPtr<IFileOpenDialog> pFolderDialog;
 	HRESULT hr = pFolderDialog.CoCreateInstance(CLSID_FileOpenDialog);
 
-	if (SUCCEEDED(hr)) {
+	if (SUCCEEDED(hr))
+	{
 		FILEOPENDIALOGOPTIONS options{};
 		pFolderDialog->GetOptions(&options);
 		pFolderDialog->SetOptions(options | FOS_PICKFOLDERS | FOS_PATHMUSTEXIST | FOS_FORCEFILESYSTEM);
 		if (title != nullptr)pFolderDialog->SetTitle(title);
 
-		if (SUCCEEDED(pFolderDialog->Show(static_cast<HWND>(hParentWnd))))
+		if (SUCCEEDED(pFolderDialog->Show(static_cast<HWND>(hOwnerWnd))))
 		{
 			CComPtr<IShellItem> pSelectedItem;
 			pFolderDialog->GetResult(&pSelectedItem);
@@ -47,19 +48,20 @@ std::wstring win_dialogue::SelectFolder(const wchar_t* title, void* hParentWnd)
 	return {};
 }
 
-std::wstring win_dialogue::SelectOpenFile(const wchar_t* fileType, const wchar_t* fileSpec, const wchar_t* title, void* hParentWnd, bool bAny)
+std::wstring win_dialogue::SelectOpenFile(const wchar_t* fileType, const wchar_t* fileSpec, const wchar_t* title, void* hOwnerWnd, bool allowAll)
 {
 	ComInit comInit;
 	CComPtr<IFileOpenDialog> pFileDialog;
 	HRESULT hr = pFileDialog.CoCreateInstance(CLSID_FileOpenDialog);
 
-	if (SUCCEEDED(hr)) {
+	if (SUCCEEDED(hr))
+	{
 		COMDLG_FILTERSPEC filter[2]{};
 		filter[0].pszName = fileType;
 		filter[0].pszSpec = fileSpec;
 		filter[1].pszName = L"All files";
 		filter[1].pszSpec = L"*";
-		hr = pFileDialog->SetFileTypes(bAny ? 2 : 1, filter);
+		hr = pFileDialog->SetFileTypes(allowAll ? 2 : 1, filter);
 		if (SUCCEEDED(hr))
 		{
 			FILEOPENDIALOGOPTIONS options{};
@@ -67,7 +69,7 @@ std::wstring win_dialogue::SelectOpenFile(const wchar_t* fileType, const wchar_t
 			pFileDialog->SetOptions(options | FOS_PATHMUSTEXIST | FOS_FORCEFILESYSTEM);
 			if (title != nullptr)pFileDialog->SetTitle(title);
 
-			if (SUCCEEDED(pFileDialog->Show(static_cast<HWND>(hParentWnd))))
+			if (SUCCEEDED(pFileDialog->Show(static_cast<HWND>(hOwnerWnd))))
 			{
 				CComPtr<IShellItem> pSelectedItem;
 				pFileDialog->GetResult(&pSelectedItem);
@@ -89,7 +91,7 @@ std::wstring win_dialogue::SelectOpenFile(const wchar_t* fileType, const wchar_t
 	return {};
 }
 
-std::vector<std::wstring> win_dialogue::SelectOpenFiles(const wchar_t* fileType, const wchar_t* fileSpec, const wchar_t* title, void* hParentWnd, bool bAny)
+std::vector<std::wstring> win_dialogue::SelectOpenFiles(const wchar_t* fileType, const wchar_t* fileSpec, const wchar_t* title, void* hOwnerWnd, bool allowAll)
 {
 	ComInit comInit;
 	CComPtr<IFileOpenDialog> pFileDialog;
@@ -97,13 +99,14 @@ std::vector<std::wstring> win_dialogue::SelectOpenFiles(const wchar_t* fileType,
 
 	std::vector<std::wstring> selectedFilePaths;
 
-	if (SUCCEEDED(hr)) {
+	if (SUCCEEDED(hr))
+	{
 		COMDLG_FILTERSPEC filter[2]{};
 		filter[0].pszName = fileType;
 		filter[0].pszSpec = fileSpec;
 		filter[1].pszName = L"All files";
 		filter[1].pszSpec = L"*";
-		hr = pFileDialog->SetFileTypes(bAny ? 2 : 1, filter);
+		hr = pFileDialog->SetFileTypes(allowAll ? 2 : 1, filter);
 		if (SUCCEEDED(hr))
 		{
 			FILEOPENDIALOGOPTIONS options{};
@@ -111,7 +114,7 @@ std::vector<std::wstring> win_dialogue::SelectOpenFiles(const wchar_t* fileType,
 			pFileDialog->SetOptions(options | FOS_PATHMUSTEXIST | FOS_FORCEFILESYSTEM | FOS_ALLOWMULTISELECT);
 			if (title != nullptr)pFileDialog->SetTitle(title);
 
-			if (SUCCEEDED(pFileDialog->Show(static_cast<HWND>(hParentWnd))))
+			if (SUCCEEDED(pFileDialog->Show(static_cast<HWND>(hOwnerWnd))))
 			{
 				CComPtr<IShellItemArray> pSelectedItems;
 				hr = pFileDialog->GetResults(&pSelectedItems);
@@ -142,7 +145,7 @@ std::vector<std::wstring> win_dialogue::SelectOpenFiles(const wchar_t* fileType,
 	return selectedFilePaths;
 }
 
-std::wstring win_dialogue::SelectSaveFile(const wchar_t* fileType, const wchar_t* pwzSpec, const wchar_t* defaultFileName, void* hParentWnd)
+std::wstring win_dialogue::SelectSaveFile(const wchar_t* fileType, const wchar_t* fileSpec, const wchar_t* defaultFileName, void* hOwnerWnd)
 {
 	ComInit comInit;
 	CComPtr<IFileSaveDialog> pFileDialog;
@@ -152,17 +155,17 @@ std::wstring win_dialogue::SelectSaveFile(const wchar_t* fileType, const wchar_t
 	{
 		COMDLG_FILTERSPEC filter[1]{};
 		filter[0].pszName = fileType;
-		filter[0].pszSpec = pwzSpec;
+		filter[0].pszSpec = fileSpec;
 		hr = pFileDialog->SetFileTypes(1, filter);
 		if (SUCCEEDED(hr))
 		{
-			pFileDialog->SetFileName(defaultFileName);
+			if (defaultFileName != nullptr)pFileDialog->SetFileName(defaultFileName);
 
 			FILEOPENDIALOGOPTIONS options{};
 			pFileDialog->GetOptions(&options);
 			pFileDialog->SetOptions(options | FOS_PATHMUSTEXIST | FOS_FORCEFILESYSTEM);
 
-			if (SUCCEEDED(pFileDialog->Show(static_cast<HWND>(hParentWnd))))
+			if (SUCCEEDED(pFileDialog->Show(static_cast<HWND>(hOwnerWnd))))
 			{
 				CComPtr<IShellItem> pSelectedItem;
 				pFileDialog->GetResult(&pSelectedItem);

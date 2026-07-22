@@ -9,7 +9,7 @@
 namespace win_filesystem
 {
 	/* 最大経路長 */
-	static constexpr size_t kMaxPathLength = 512;
+	static constexpr size_t kMaxPathLength = 1024;
 
 	/// @brief 動的割り当てを行わない文字列操作
 	template<size_t N>
@@ -18,7 +18,9 @@ namespace win_filesystem
 	public:
 		const wchar_t* data() const { return m_data; }
 		size_t size() const { return m_nWritten; }
-		const wchar_t back() const { return m_data[m_nWritten]; }
+		bool empty() const { return m_nWritten == 0; }
+		const wchar_t front() const { return m_data[0]; }
+		const wchar_t back() const { return m_nWritten == 0 ? m_data[0] : m_data[m_nWritten - 1ULL]; }
 
 		std::wstring_view stringView() const
 		{
@@ -31,6 +33,18 @@ namespace win_filesystem
 			{
 				wmemcpy(m_data + m_nWritten, s.data(), s.size());
 				m_nWritten += s.size();
+				m_data[m_nWritten] = L'\0';
+			}
+
+			return *this;
+		}
+		/// @brief 文字列連結
+		StaticWString& append(const wchar_t* s, size_t length)
+		{
+			if (m_nWritten + length < MaxSize)
+			{
+				wmemcpy(m_data + m_nWritten, s, length);
+				m_nWritten += length;
 				m_data[m_nWritten] = L'\0';
 			}
 
@@ -53,7 +67,7 @@ namespace win_filesystem
 			++m_nWritten;
 		}
 		/// @brief 文字列挿入
-		void insert(std::string_view s, size_t nPos = 0)
+		void insert(std::wstring_view s, size_t nPos = 0)
 		{
 			if (s.size() + nPos > MaxSize)return;
 
@@ -66,7 +80,7 @@ namespace win_filesystem
 		{
 			for (size_t i = 0; i < m_nWritten; ++i)
 			{
-				wchar_t& cRef = &m_data[i];
+				wchar_t& cRef = m_data[i];
 				if (cRef == cOld)
 				{
 					cRef = cNew;
@@ -107,12 +121,12 @@ namespace win_filesystem
 		static constexpr size_t MaxSize = sizeof(m_data) / sizeof(wchar_t) - 1;
 	};
 
-	using StaticWString512 = StaticWString<512>;
+	using StaticWStringMaxPath = StaticWString<kMaxPathLength>;
 
 	/*指定階層のファイル・フォルダ名一覧取得*/
 	static bool CreateFilaNameList(std::wstring_view folderPath, std::wstring_view fileNamePattern, std::vector<std::wstring>& names)
 	{
-		StaticWString512 findDataPath;
+		StaticWStringMaxPath findDataPath;
 		findDataPath.append(folderPath);
 
 		bool toFindDirectory = fileNamePattern.empty();
@@ -190,7 +204,7 @@ bool win_filesystem::CreateFilePathList(std::wstring_view folderPath, std::wstri
 {
 	if (folderPath.empty())return false;
 
-	StaticWString512 parentFolderPath;
+	StaticWStringMaxPath parentFolderPath;
 	parentFolderPath.append(folderPath);
 	if (parentFolderPath.back() != L'\\')
 	{
@@ -235,27 +249,45 @@ bool win_filesystem::CreateFilePathList(std::wstring_view folderPath, std::wstri
 		std::swap(fileNames[i], fileNames[nIndex]);
 	}
 
+	if (toAddParent)
+	{
+		for (std::wstring& fileName : fileNames)
+		{
+			fileName.insert(0, parentFolderPath.data(), parentFolderPath.size());
+		}
+	}
+
 	if (paths.empty())
 	{
 		paths = std::move(fileNames);
-		if (toAddParent)
-		{
-			for (std::wstring& path : paths)
-			{
-				path = parentFolderPath.data() + path;
-			}
-		}
 	}
 	else
 	{
 		for (std::wstring& fileName : fileNames)
 		{
-			if (toAddParent)paths.emplace_back(parentFolderPath.data() + fileName);
-			else paths.push_back(std::move(fileName));
+			paths.push_back(std::move(fileName));
 		}
 	}
 
 	return paths.size() > 0;
+}
+
+bool win_filesystem::GetFilePathListAndIndex(std::wstring_view path, std::wstring_view fileSpec, std::vector<std::wstring>& paths, size_t& nIndex)
+{
+	size_t nPos = path.find_last_of(L"\\/");
+	if (nPos == std::wstring_view::npos)return false;
+
+	std::wstring_view parentPath = path.substr(0, nPos);
+
+	win_filesystem::CreateFilePathList(parentPath, fileSpec, paths);
+
+	const auto& iter = std::find(paths.begin(), paths.end(), path);
+	if (iter != paths.end())
+	{
+		nIndex = std::distance(paths.begin(), iter);
+	}
+
+	return iter != paths.end();
 }
 
 std::wstring_view win_filesystem::GetCurrentProcessPath()
@@ -282,7 +314,7 @@ std::wstring_view win_filesystem::GetCurrentProcessPath()
 	return std::wstring_view(s_basePath, s_basePathLength);
 }
 
-bool win_filesystem::CreateDirectoryToBuffer(std::wstring_view directoryName, wchar_t* dst, size_t dstSize, size_t& nWritten, std::wstring_view basePath)
+bool win_filesystem::CreateDirectoryInBuffer(std::wstring_view directoryName, wchar_t* dst, size_t dstSize, size_t& nWritten, std::wstring_view basePath)
 {
 	if (basePath.empty())
 	{
@@ -295,7 +327,7 @@ bool win_filesystem::CreateDirectoryToBuffer(std::wstring_view directoryName, wc
 	nWritten = basePath.size();
 
 	size_t nRead = 0;
-	if (dst[nWritten] != L'\\' && dst[nWritten] != L'/')
+	if (dst[nWritten - 1ULL] != L'\\' && dst[nWritten - 1ULL] != L'/')
 	{
 		dst[nWritten++] = L'\\';
 		dst[nWritten] = L'\0';
@@ -338,7 +370,17 @@ bool win_filesystem::CreateDirectoryToBuffer(std::wstring_view directoryName, wc
 
 	return true;
 }
-/*文字列としてファイル読み込み*/
+
+std::wstring win_filesystem::CreateDirectorio(std::wstring_view directoryName, std::wstring_view basePath)
+{
+	wchar_t buffer[kMaxPathLength]{};
+	constexpr size_t bufferSize = sizeof(buffer) / sizeof(wchar_t) - 1;
+	size_t nWritten = 0;
+	CreateDirectoryInBuffer(directoryName, buffer, bufferSize, nWritten, basePath);
+
+	return std::wstring(buffer, nWritten);
+}
+
 std::string win_filesystem::LoadFileAsString(const wchar_t* filePath)
 {
 	std::string fileData;
@@ -387,7 +429,10 @@ bool win_filesystem::SaveDataToFile(const wchar_t* filePath, const void* pData, 
 
 bool win_filesystem::DoesFileExist(const wchar_t* filePath)
 {
-	return ::PathFileExistsW(filePath) == TRUE;
+	WIN32_FILE_ATTRIBUTE_DATA win32FileAttributeData{};
+	BOOL iRet = ::GetFileAttributesExW(filePath, GET_FILEEX_INFO_LEVELS::GetFileExInfoStandard, &win32FileAttributeData);
+
+	return iRet != 0;
 }
 
 bool win_filesystem::RenameFile(const wchar_t* filePathOld, const wchar_t* filePathNew)
