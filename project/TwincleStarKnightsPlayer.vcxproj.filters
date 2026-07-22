@@ -60,6 +60,9 @@
     <ClInclude Include="..\src\sfml-spine-cpp\spine_player.h">
       <Filter>Header File\sfml-spine-cpp</Filter>
     </ClInclude>
+    <ClInclude Include="pch.h">
+      <Filter>Resource File</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\clst.cpp">
@@ -277,6 +280,9 @@
     </ClCompile>
     <ClCompile Include="..\src\deps\spine-cpp-4.0\src\spine\VertexEffect.cpp">
       <Filter>Source File\deps\spine-cpp-4.0</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp">
+      <Filter>Resource File</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

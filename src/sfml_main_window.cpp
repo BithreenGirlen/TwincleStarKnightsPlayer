@@ -466,7 +466,7 @@ void CSfmlMainWindow::updateMessageText()
 	}
 
 	wchar_t sBuffer[64]{}; /* size_t is 20 digits at most. */
-	swprintf(sBuffer, L"%zu/%zu", m_nTextIndex + 1, m_textData.size());
+	swprintf_s(sBuffer, L"%zu/%zu", m_nTextIndex + 1, m_textData.size());
 	message += sBuffer;
 	m_msgText->setString(message);
 
