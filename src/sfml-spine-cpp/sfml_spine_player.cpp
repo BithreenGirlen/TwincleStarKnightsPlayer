@@ -95,17 +95,37 @@ void CSfmlSpinePlayer::workOutDefaultScale()
 	}
 }
 
-void CSfmlSpinePlayer::workOutDefaultOffset()
+void CSfmlSpinePlayer::workOutDefaultSizeAndOffset()
 {
+	static constexpr float kMaxDimension = 16384.f;
+
 	float fMinX = std::numeric_limits<float>::max();
 	float fMinY = std::numeric_limits<float>::max();
+	float fWidth = std::numeric_limits<float>::lowest();
+	float fHeight = std::numeric_limits<float>::lowest();
 
 	for (const auto& pDrawable : m_drawables)
 	{
 		const auto& rect = pDrawable->getBoundingBox();
 		fMinX = (std::min)(fMinX, rect.position.x);
 		fMinY = (std::min)(fMinY, rect.position.y);
+
+		if (::isless(rect.size.x, kMaxDimension) && ::isless(rect.size.y, kMaxDimension))
+		{
+			fWidth = (std::max)(fWidth, rect.size.x);
+			fHeight = (std::max)(fHeight, rect.size.y);
+		}
 	}
 
-	m_fDefaultOffset = { fMinX, fMinY };
+	if (::isless(fMinX, std::numeric_limits<float>::max()) && ::isless(fMinY, std::numeric_limits<float>::max()))
+	{
+		m_fDefaultOffset.x = fMinX;
+		m_fDefaultOffset.y = fMinY;
+	}
+
+	if (::isgreater(fWidth, std::numeric_limits<float>::lowest()) && ::isgreater(fHeight, std::numeric_limits<float>::lowest()))
+	{
+		m_fBaseSize.x = fWidth;
+		m_fBaseSize.y = fHeight;
+	}
 }

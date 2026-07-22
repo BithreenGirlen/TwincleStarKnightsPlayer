@@ -78,6 +78,9 @@ public:
 	void setCurrentAnimationTime(float animationTime);
 	float getAnimationDuration(const char* animationName);
 
+	/// @brief Maybe nullptr
+	const char* getCurrentSkinName();
+
 	const std::vector<std::string>& getSlotNames() const noexcept;
 	const std::vector<std::string>& getSkinNames() const noexcept;
 	const std::vector<std::string>& getAnimationNames() const noexcept;
@@ -111,7 +114,7 @@ public:
 	float getTimeScale() const noexcept;
 	void setTimeScale(float fTimeScale) noexcept;
 protected:
-	enum Constants { kBaseWidth = 1280, kBaseHeight = 720, kMinAtlas = 1024 };
+	enum Constants { kBaseWidth = 1280, kBaseHeight = 720};
 
 	CTextureLoader m_textureLoader;
 	std::vector<std::unique_ptr<spine::Atlas>> m_atlases;
@@ -142,9 +145,9 @@ protected:
 	bool addDrawable(spine::SkeletonData* pSkeletonData);
 	bool setupDrawables();
 
-	void workOutDefaultSize();
+	void workOutDefaultSizeFromFileData();
 	virtual void workOutDefaultScale() = 0;
-	virtual void workOutDefaultOffset() = 0;
+	virtual void workOutDefaultSizeAndOffset() = 0;
 
 	void updatePosition();
 

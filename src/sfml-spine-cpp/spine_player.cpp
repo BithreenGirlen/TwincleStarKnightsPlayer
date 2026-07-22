@@ -428,6 +428,20 @@ float CSpinePlayer::getAnimationDuration(const char* animationName)
 	return 0.f;
 }
 
+const char* CSpinePlayer::getCurrentSkinName()
+{
+	for (const auto& pDrawable : m_drawables)
+	{
+		spine::Skin* pSkin = pDrawable->skeleton()->getSkin();
+		if (pSkin != nullptr)
+		{
+			return pSkin->getName().buffer();
+		}
+	}
+
+	return nullptr;
+}
+
 const std::vector<std::string>& CSpinePlayer::getSlotNames() const noexcept
 {
 	return m_slotNames;
@@ -668,19 +682,27 @@ void CSpinePlayer::setBaseSize(float fWidth, float fHeight)
 
 void CSpinePlayer::resetBaseSize()
 {
-	workOutDefaultSize();
-	workOutDefaultScale();
-
 	m_fOffset = {};
 	updatePosition();
+
 	for (const auto& drawable : m_drawables)
 	{
 		drawable->animationState()->setEmptyAnimations(0.f);
 		drawable->update(0.f);
 	}
 
-	workOutDefaultOffset();
+	workOutDefaultSizeAndOffset();
+	updatePosition();
+	for (const auto& drawable : m_drawables)
+	{
+		drawable->update(0.f);
+	}
+
+	workOutDefaultSizeAndOffset();
+	workOutDefaultScale();
+
 	resetScale();
+
 	restartAnimation();
 }
 
@@ -755,9 +777,6 @@ bool CSpinePlayer::addDrawable(spine::SkeletonData* pSkeletonData)
 
 bool CSpinePlayer::setupDrawables()
 {
-	workOutDefaultSize();
-	workOutDefaultScale();
-
 	for (const auto& pSkeletonDatum : m_skeletonData)
 	{
 		bool bRet = addDrawable(pSkeletonDatum.get());
@@ -784,24 +803,20 @@ bool CSpinePlayer::setupDrawables()
 		}
 
 		auto& slots = pSkeletonDatum->getSlots();
-		for (size_t ii = 0; ii < slots.size(); ++ii)
+		for (size_t i = 0; i < slots.size(); ++i)
 		{
-			const char* szName = slots[ii]->getName().buffer();
+			const char* szName = slots[i]->getName().buffer();
 			const auto& iter = std::find(m_slotNames.begin(), m_slotNames.end(), szName);
 			if (iter == m_slotNames.cend())m_slotNames.push_back(szName);
 		}
 	}
 
-	workOutDefaultOffset();
-
-	restartAnimation();
-
-	resetScale();
+	resetBaseSize();
 
 	return m_animationNames.size() > 0;
 }
 
-void CSpinePlayer::workOutDefaultSize()
+void CSpinePlayer::workOutDefaultSizeFromFileData()
 {
 	if (m_skeletonData.empty())return;
 
@@ -856,9 +871,11 @@ void CSpinePlayer::workOutDefaultSize()
 			{
 				spine::MeshAttachment* pMeshAttachment = (spine::MeshAttachment*)pAttachment;
 
+				static constexpr float kMinAtlas = 1024.f;
+
 				float fScale =
-					::isgreater(pMeshAttachment->getWidth(), Constants::kMinAtlas) &&
-					::isgreater(pMeshAttachment->getHeight(), Constants::kMinAtlas) ? 1.f : 2.f;
+					::isgreater(pMeshAttachment->getWidth(), kMinAtlas) &&
+					::isgreater(pMeshAttachment->getHeight(), kMinAtlas) ? 1.f : 2.f;
 
 				CompareDimention(pMeshAttachment->getWidth() * fScale, pMeshAttachment->getHeight() * fScale);
 			}

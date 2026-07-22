@@ -15,7 +15,7 @@ public:
 	std::optional<sf::FloatRect> getCurrentBoundingBoxOfSlot(std::string_view slotName) const;
 private:
 	void workOutDefaultScale() override;
-	void workOutDefaultOffset() override;
+	void workOutDefaultSizeAndOffset() override;
 };
 
 #endif // !SFML_SPINE_PLAYER_H_
