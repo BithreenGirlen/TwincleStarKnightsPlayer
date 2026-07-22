@@ -5,7 +5,8 @@
 CSfmlMainWindow::CSfmlMainWindow(const char32_t* windowName)
 {
 	m_window = std::make_unique<sf::RenderWindow>(sf::VideoMode({ 200, 200 }), windowName, sf::Style::None);
-	m_window->setPosition(sf::Vector2i(0, 0));
+
+	alignWindowToTheTopLeftOfMonitor();
 	m_window->setVerticalSyncEnabled(true);
 
 	m_sfmlSpinePlayer = std::make_unique<CSfmlSpinePlayer>();
@@ -23,8 +24,6 @@ bool CSfmlMainWindow::setSpineFromFile(const std::vector<std::string>& atlasFile
 	bool bRet = m_sfmlSpinePlayer->loadSpineFromFile(atlasFilePaths, skelFilePaths, isBinarySkel);
 	if (bRet)
 	{
-		setSpinePlayerSize();
-
 		/* Filename including extension. */
 		size_t nPos = atlasFilePaths[0].find_last_of("\\/");
 		if (nPos == std::string::npos)nPos = 0;
@@ -42,15 +41,10 @@ void CSfmlMainWindow::setSlotExclusionCallback(bool(*pFunc)(const char*, size_t)
 
 int CSfmlMainWindow::display()
 {
+	setSpinePlayerSize();
 	resetSpinePlayerScale();
 
 	updateMessageText();
-
-	sf::Vector2i lastMousePos;
-
-	bool toMoveWindow = false;
-	bool wasLeftPressed = false;
-	bool wasLeftCombined = false;
 
 	int iRet = 0;
 
@@ -67,37 +61,39 @@ int CSfmlMainWindow::display()
 			{
 				if (event.button == sf::Mouse::Button::Left)
 				{
-					lastMousePos = event.position;
+					m_mouseState.lastMousePos = event.position;
 
-					wasLeftPressed = true;
+					m_mouseState.wasLeftPressed = true;
 				}
 			},
 			[&](const sf::Event::MouseButtonReleased& event)
 			{
 				if (event.button == sf::Mouse::Button::Left)
 				{
-					if (wasLeftCombined)
+					if (m_mouseState.wasLeftCombined || m_mouseState.wasLeftDragged)
 					{
-						wasLeftCombined = false;
-						wasLeftPressed = false;
+						m_mouseState.wasLeftCombined = false;
+						m_mouseState.wasLeftPressed = false;
+						m_mouseState.wasLeftDragged = false;
+
 						return;
 					}
 
-					if (toMoveWindow || sf::Mouse::isButtonPressed(sf::Mouse::Button::Right))
+					if (m_windowState.toBeMoved || sf::Mouse::isButtonPressed(sf::Mouse::Button::Right))
 					{
-						toMoveWindow ^= true;
+						m_windowState.toBeMoved ^= true;
 						return;
 					}
 
-					int iX = lastMousePos.x - event.position.x;
-					int iY = lastMousePos.y - event.position.y;
+					int iX = m_mouseState.lastMousePos.x - event.position.x;
+					int iY = m_mouseState.lastMousePos.y - event.position.y;
 
 					if (iX == 0 && iY == 0)
 					{
 						shiftAnimation();
 					}
 
-					wasLeftPressed = false;
+					m_mouseState.wasLeftPressed = false;
 				}
 				else if (event.button == sf::Mouse::Button::Middle)
 				{
@@ -108,15 +104,18 @@ int CSfmlMainWindow::display()
 			{
 				if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left))
 				{
-					if (wasLeftPressed)
+					if (!m_mouseState.wasLeftCombined)
 					{
-						int iX = lastMousePos.x - event.position.x;
-						int iY = lastMousePos.y - event.position.y;
-						m_sfmlSpinePlayer->addOffset(iX, iY);
+						if (m_mouseState.wasLeftDragged)
+						{
+							int iX = m_mouseState.lastMousePos.x - event.position.x;
+							int iY = m_mouseState.lastMousePos.y - event.position.y;
+							m_sfmlSpinePlayer->addOffset(iX, iY);
+						}
 
-						lastMousePos = event.position;
+						m_mouseState.lastMousePos = event.position;
 
-						wasLeftCombined = true;
+						m_mouseState.wasLeftDragged = true;
 					}
 				}
 			},
@@ -131,7 +130,7 @@ int CSfmlMainWindow::display()
 					timeScale = (std::max)(timeScale, 0.f);
 					m_sfmlSpinePlayer->setTimeScale(timeScale);
 
-					wasLeftCombined = true;
+					m_mouseState.wasLeftCombined = true;
 				}
 				else if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Right))
 				{
@@ -183,6 +182,14 @@ int CSfmlMainWindow::display()
 				case sf::Keyboard::Scancode::C:
 					toggleTextColor();
 					break;
+				case sf::Keyboard::Scancode::F:
+					if (!m_windowState.toBeMoved)
+					{
+						m_windowStyle.toFitToMonitorHeight ^= true;
+						alignWindowToTheTopLeftOfMonitor();
+						resetSpinePlayerScale();
+					}
+					break;
 				case sf::Keyboard::Scancode::H:
 					m_isHelpHidden ^= true;
 					break;
@@ -229,21 +236,21 @@ int CSfmlMainWindow::display()
 			m_window->draw(spineSprite);
 		}
 
-		if (!m_isTextHidden)
-		{
-			m_window->draw(*m_msgText);
-		}
-
 		if (!m_isHelpHidden)
 		{
 			m_window->draw(*m_helpText);
+		}
+
+		if (!m_isTextHidden)
+		{
+			m_window->draw(*m_msgText);
 		}
 
 		m_window->display();
 
 		checkTimer();
 
-		if (toMoveWindow)
+		if (m_windowState.toBeMoved)
 		{
 			int iPosX = sf::Mouse::getPosition().x - m_window->getSize().x / 2;
 			int iPosY = sf::Mouse::getPosition().y - m_window->getSize().y / 2;
@@ -262,12 +269,12 @@ void CSfmlMainWindow::resizeWindow()
 	const unsigned int maxWindowWidth = static_cast<unsigned int>(fBaseSize.x * (fScale - kScaleDelta));
 	const unsigned int maxWindowHeight = static_cast<unsigned int>(fBaseSize.y * (fScale - kScaleDelta));
 
-	const sf::Vector2u desktopSize = sf::VideoMode::getDesktopMode().size;
+	const sf::Vector2u monitorSize = getMonitorInfo().size;
 	/*
 	* Instability of borderless window with max resolution has not been fixed even in SFML 3.0.2
 	* https://github.com/SFML/SFML/issues/1284
 	*/
-	if (maxWindowWidth < desktopSize.x || maxWindowHeight < desktopSize.y)
+	if (maxWindowWidth < monitorSize.x || maxWindowHeight < monitorSize.y)
 	{
 		const unsigned int windowWidth = static_cast<unsigned int>(fBaseSize.x * fScale);
 		const unsigned int windowHeight = static_cast<unsigned int>(fBaseSize.y * fScale);
@@ -280,34 +287,68 @@ void CSfmlMainWindow::resizeWindow()
 
 	sf::Vector2u windowSize = m_window->getSize();
 	sf::FloatRect bounds = m_helpText->getGlobalBounds();
-	unsigned int helpBottom = (std::min)(desktopSize.y, windowSize.y);
+	unsigned int helpBottom = (std::min)(monitorSize.y, windowSize.y);
 	m_helpText->setPosition(sf::Vector2f{ 0, helpBottom - bounds.size.y });
 }
 
-void CSfmlMainWindow::resetSpinePlayerScale()
+void CSfmlMainWindow::alignWindowToTheTopLeftOfMonitor()
 {
-	m_sfmlSpinePlayer->resetScale();
+	m_window->setPosition(getMonitorInfo().position);
+}
 
-	const sf::Vector2f fBaseSize = m_sfmlSpinePlayer->getBaseSize();
-	const float skeletonScale = m_sfmlSpinePlayer->getSkeletonScale();
+CSfmlMainWindow::MonitorInfo CSfmlMainWindow::getMonitorInfo()
+{
+	/* SFML does know only primary monitor. */
+#if !defined _WIN32
+	return { {}, sf::VideoMode::getDesktopMode().size };
+#else
+	MONITORINFO monitorInfo{ sizeof(MONITORINFO) };
+	HMONITOR hMonitor = ::MonitorFromWindow(m_window->getNativeHandle(), MONITOR_DEFAULTTONEAREST);
+	if (hMonitor != nullptr)
+	{
+		::GetMonitorInfoW(hMonitor, &monitorInfo);
+	}
 
-	const sf::Vector2u desktopSize = sf::VideoMode::getDesktopMode().size;
-	const bool isLandscape = desktopSize.x > desktopSize.y;
-	const float scale = (isLandscape ? desktopSize.x : desktopSize.y) / (isLandscape ? fBaseSize.x : fBaseSize.y);
+	int x = static_cast<int>(monitorInfo.rcMonitor.left);
+	int y = static_cast<int>(monitorInfo.rcMonitor.top);
 
-	m_sfmlSpinePlayer->setSkeletonScale(scale * 1.25f);
-	m_sfmlSpinePlayer->setCanvasScale(scale);
+	unsigned int width = static_cast<unsigned int>(monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left);
+	unsigned int height = static_cast<unsigned int>(monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top);
 
-	resizeWindow();
+	return { {x, y}, {width, height} };
+#endif
 }
 
 void CSfmlMainWindow::setSpinePlayerSize()
 {
 	if (m_sfmlSpinePlayer != nullptr)
 	{
-		m_sfmlSpinePlayer->setOffset(0, 0);
-		m_sfmlSpinePlayer->setBaseSize(1610.f, 940.f);
+		static constexpr float kDefaultWidth = 1610.f;
+		static constexpr float kDefaultHeight = 940.f;
+
+		m_sfmlSpinePlayer->setOffset(0.f, 0.f);
+		m_sfmlSpinePlayer->setBaseSize(kDefaultWidth, kDefaultHeight);
 	}
+}
+
+void CSfmlMainWindow::resetSpinePlayerScale()
+{
+	static constexpr float kDefaultZoomOffset = 0.25f;
+
+	m_sfmlSpinePlayer->resetScale();
+
+	const sf::Vector2f fBaseSize = m_sfmlSpinePlayer->getBaseSize();
+	const float skeletonScale = m_sfmlSpinePlayer->getSkeletonScale();
+
+	const sf::Vector2u monitorSize = getMonitorInfo().size;
+	const bool isLandscape = monitorSize.x > monitorSize.y;
+	const bool toFitToWidth = isLandscape ^ m_windowStyle.toFitToMonitorHeight;
+	const float scale = (toFitToWidth ? monitorSize.x : monitorSize.y) / (toFitToWidth ? fBaseSize.x : fBaseSize.y);
+
+	m_sfmlSpinePlayer->setSkeletonScale(scale + kDefaultZoomOffset);
+	m_sfmlSpinePlayer->setCanvasScale(scale);
+
+	resizeWindow();
 }
 
 bool CSfmlMainWindow::saveCurrentFrameImage()
@@ -336,11 +377,21 @@ bool CSfmlMainWindow::setFont(const std::string& fontFilePath, bool bold, bool i
 	static constexpr unsigned int fontSize = 42;
 	static constexpr float fOutLineThickness = 2.4f;
 
+	const auto GetDpiScale = [](const sf::Window* const pWindow)
+		-> float
+		{
+#if !defined _WIN32
+			return 1.f;
+#else
+			return ::GetDpiForWindow(pWindow->getNativeHandle()) / 96.f;
+#endif
+		};
+
 	m_msgText = std::make_unique<sf::Text>(m_font);
 	m_msgText->setFillColor(sf::Color::Black);
 	m_msgText->setStyle((bold ? sf::Text::Style::Bold : 0) | (italic ? sf::Text::Style::Italic : 0));
 	m_msgText->setCharacterSize(fontSize);
-	m_msgText->setOutlineThickness(fOutLineThickness);
+	m_msgText->setOutlineThickness(fOutLineThickness * GetDpiScale(m_window.get()));
 	m_msgText->setLineSpacing(0.8f);
 	m_msgText->setOutlineColor(sf::Color::White);
 
@@ -349,19 +400,19 @@ bool CSfmlMainWindow::setFont(const std::string& fontFilePath, bool bold, bool i
 	m_helpText->setCharacterSize(fontSize / 2);
 
 	static constexpr char32_t help[] =
-		U"[H] Hide help\n"
-		U"[T] Hide message\n"
-		U"[C] Toggle text colour\n"
-		U"[Scroll] Scale up/down\n"
-		U"[Ctrl + scroll] Zoom in/out\n"
-		U"[L + scroll] Speed up/down the animation\n"
-		U"[L-drag] Move view-point\n"
-		U"[M-click] Reset scale, speed, view-point\n"
-		U"[R + L-click] Move window\n"
 		U"[B] Force blend-mode-normal (* Apply if too-bright)\n"
+		U"[C] Toggle text colour\n"
+		U"[F] Fit window to the monitor width/height\n"
+		U"[H] Hide help\n"
 		U"[S] Save image\n"
-		U"[↑ | ↓] Open the next/prev. folder\n"
-		U"[← | →; R + scroll] Fast forward/rewind the message\n";
+		U"[T] Hide scene text\n"
+		U"[Scroll] Scale up/down; with Ctrl to zoom in/out\n"
+		U"[Left-pressed + scroll] Speed up/down the animation\n"
+		U"[Left-drag] Move view-point\n"
+		U"[Middle-click] Reset scale, speed, and view-point\n"
+		U"[Right-pressed + Left-click] Move window\n"
+		U"[←|→; Right-pressed + scroll] Fast forward/rewind the scene text\n"
+		U"[↑|↓] Open the next/prev. folder\n";
 	m_helpText->setString(help);
 
 	return true;

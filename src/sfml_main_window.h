@@ -25,16 +25,47 @@ public:
 private:
 	static constexpr float kScaleDelta = 0.025f;
 
+	struct MouseState
+	{
+		bool wasLeftPressed = false;
+		bool wasLeftCombined = false;
+		bool wasLeftDragged = false;
+
+		bool wasRightCombined = false;
+
+		sf::Vector2i lastMousePos{};
+	};
+
+	struct WindowState
+	{
+		bool toBeMoved = false;
+	};
+	struct WindowStyle
+	{
+		bool toFitToMonitorHeight;
+	};
+	struct MonitorInfo
+	{
+		sf::Vector2i position;
+		sf::Vector2u size;
+	};
+
 	std::unique_ptr<sf::RenderWindow> m_window;
+
+	MouseState m_mouseState;
+	WindowState m_windowState;
+	WindowStyle m_windowStyle;
 
 	std::unique_ptr<CSfmlSpinePlayer> m_sfmlSpinePlayer;
 	sf::Clock m_spineClock;
 	sf::RenderTexture m_spineRenderTexture;
 
 	void resizeWindow();
+	void alignWindowToTheTopLeftOfMonitor();
+	MonitorInfo getMonitorInfo();
 
-	void resetSpinePlayerScale();
 	void setSpinePlayerSize();
+	void resetSpinePlayerScale();
 
 	bool saveCurrentFrameImage();
 
