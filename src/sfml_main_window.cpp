@@ -176,6 +176,9 @@ int CSfmlMainWindow::display()
 			{
 				switch (event.scancode)
 				{
+				case sf::Keyboard::Scancode::A:
+					m_sfmlSpinePlayer->enableConversionToPmaOnLoading(!m_sfmlSpinePlayer->isConversionToPmaOnLoadingEnabled());
+					break;
 				case sf::Keyboard::Scancode::B:
 					m_sfmlSpinePlayer->toggleBlendModeAdoption();
 					break;
@@ -374,7 +377,6 @@ bool CSfmlMainWindow::setFont(const std::string& fontFilePath, bool bold, bool i
 	bool bRet = m_font.openFromFile(fontFilePath);
 	if (!bRet)return false;
 
-	static constexpr unsigned int fontSize = 42;
 	static constexpr float fOutLineThickness = 2.4f;
 
 	const auto GetDpiScale = [](const sf::Window* const pWindow)
@@ -386,21 +388,21 @@ bool CSfmlMainWindow::setFont(const std::string& fontFilePath, bool bold, bool i
 			return ::GetDpiForWindow(pWindow->getNativeHandle()) / 96.f;
 #endif
 		};
+	const float dpiScale = GetDpiScale(m_window.get());
 
 	m_msgText = std::make_unique<sf::Text>(m_font);
 	m_msgText->setFillColor(sf::Color::Black);
 	m_msgText->setStyle((bold ? sf::Text::Style::Bold : 0) | (italic ? sf::Text::Style::Italic : 0));
-	m_msgText->setCharacterSize(fontSize);
-	m_msgText->setOutlineThickness(fOutLineThickness * GetDpiScale(m_window.get()));
+	m_msgText->setCharacterSize(static_cast<unsigned int>(m_msgText->getCharacterSize() * dpiScale));
+	m_msgText->setOutlineThickness(fOutLineThickness * dpiScale);
 	m_msgText->setLineSpacing(0.8f);
 	m_msgText->setOutlineColor(sf::Color::White);
 
 	m_helpText = std::make_unique<sf::Text>(*m_msgText);
 	m_helpText->setStyle(sf::Text::Regular);
-	m_helpText->setCharacterSize(fontSize / 2);
+	m_helpText->setCharacterSize(m_msgText->getCharacterSize() / 2);
 
 	static constexpr char32_t help[] =
-		U"[B] Force blend-mode-normal (* Apply if too-bright)\n"
 		U"[C] Toggle text colour\n"
 		U"[F] Fit window to the monitor width/height\n"
 		U"[H] Hide help\n"

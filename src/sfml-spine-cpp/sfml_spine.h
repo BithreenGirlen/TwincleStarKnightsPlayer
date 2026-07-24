@@ -63,6 +63,18 @@ public:
 	void load(spine::AtlasPage& page, const spine::String& path) override;
 
 	void unload(void* texture) override;
+
+	/// @brief Blend-mode-multiply and blend-mode-screen are allowed only on pre-multiplied texture.
+	void enableConversionToPma(bool toEnable);
+	bool isConversionToPmaEnabled() const noexcept;
+private:
+	/* AtlasPage has pma field since spine 4.0 */
+#if defined(SPINE_4_0) || defined(SPINE_4_1_OR_LATER) || defined (SPINE_4_2_OR_LATER)
+	/// @brief Though atlas page field being non-pma, the texture has already been converted to PMA via external tool
+	bool m_wasAlreadyConvertedToPma = false;
+#else /* Spine 3.8 */
+	bool m_toConvertToPma = false;
+#endif
 };
 
 #endif //!SFML_SPINE_CPP_H_

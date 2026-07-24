@@ -67,6 +67,9 @@ public:
 	void setDrawOrder(bool reversed);
 	bool isDrawOrderReversed() const noexcept;
 
+	void enableConversionToPmaOnLoading(bool toEnable);
+	bool isConversionToPmaOnLoadingEnabled() const noexcept;
+
 	/// @brief Get animation name actually entried in the track.
 	const char* getCurrentAnimationName();
 	/// @brief Get animation time actually entried in the track.

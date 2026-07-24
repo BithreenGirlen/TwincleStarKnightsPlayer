@@ -399,32 +399,91 @@ bool CSfmlSpineDrawable::isSlotToBeLeftOut(const spine::String& slotName) const
 
 void CSfmlTextureLoader::load(spine::AtlasPage& atlasPage, const spine::String& path)
 {
-	sf::Texture* texture = new sf::Texture();
-	if (!texture->loadFromFile(path.buffer()))
+	sf::Image sfImage;
+	if (!sfImage.loadFromFile(path.buffer()))
 	{
-		delete texture;
+		/* SFML does not have logger. */
 		return;
 	}
 
-	if (atlasPage.magFilter == spine::TextureFilter_Linear) texture->setSmooth(true);
-	if (atlasPage.uWrap == spine::TextureWrap_Repeat && atlasPage.vWrap == spine::TextureWrap_Repeat) texture->setRepeated(true);
+	/* Todo: Abandon "_LATER" suffix and adopt explicit name like "SPINE_40" as is already done for runtimes for SDL3, Siv3D, and DxLib. */
+#if defined(SPINE_4_0) || defined(SPINE_4_1_OR_LATER) || defined (SPINE_4_2_OR_LATER)
+	bool toConvertToPma = !atlasPage.pma && !m_wasAlreadyConvertedToPma;
+#else
+	bool toConvertToPma = m_toConvertToPma;
+#endif
+	if (toConvertToPma)
+	{
+		/* Too tedious; sf::Image should have an operator to be written like : "for (auto& pixel : sfImage){ ... }" */
 
-	/*In case atlas size does not coincide with that of png, overwriting will collapse the layout.*/
+		sf::Vector2u imageDimention = sfImage.getSize();
+		for (unsigned int y = 0; y < imageDimention.y; ++y)
+		{
+			for (unsigned int x = 0; x < imageDimention.x; ++x)
+			{
+				sf::Color pixel = sfImage.getPixel({ x, y });
+
+				const float alphaFactor = static_cast<float>(pixel.a / 255.f);
+				pixel.r = static_cast<uint8_t>(pixel.r * alphaFactor);
+				pixel.g = static_cast<uint8_t>(pixel.g * alphaFactor);
+				pixel.b = static_cast<uint8_t>(pixel.b * alphaFactor);
+
+				sfImage.setPixel({ x, y }, pixel);
+			}
+		}
+		atlasPage.pma = true;
+	}
+
+	sf::Texture* pTexture = new (std::nothrow) sf::Texture();
+	if (pTexture == nullptr)
+	{
+		return;
+	}
+	if (!pTexture->loadFromImage(sfImage))
+	{
+		delete pTexture;
+		return;
+	}
+
+	if (atlasPage.magFilter == spine::TextureFilter_Linear) pTexture->setSmooth(true);
+	if (atlasPage.uWrap == spine::TextureWrap_Repeat && atlasPage.vWrap == spine::TextureWrap_Repeat) pTexture->setRepeated(true);
+
+	/* Overwring will collapse UV coördinate.*/
+#if 0
 	if (atlasPage.width == 0 || atlasPage.height == 0)
 	{
-		sf::Vector2u size = texture->getSize();
+		sf::Vector2u size = pTexture->getSize();
 		atlasPage.width = size.x;
 		atlasPage.height = size.y;
 	}
+#endif
 
 #ifdef SPINE_4_1_OR_LATER
-	atlasPage.texture = texture;
+	atlasPage.texture = pTexture;
 #else
-	atlasPage.setRendererObject(texture);
+	atlasPage.setRendererObject(pTexture);
 #endif
 }
 
 void CSfmlTextureLoader::unload(void* texture)
 {
 	delete static_cast<sf::Texture*>(texture);
+}
+
+void CSfmlTextureLoader::enableConversionToPma(bool toEnable)
+{
+#if defined(SPINE_4_0) || defined(SPINE_4_1_OR_LATER) || defined (SPINE_4_2_OR_LATER)
+	m_wasAlreadyConvertedToPma = !toEnable;
+#else
+	m_toConvertToPma = toEnable;
+#endif
+}
+
+bool CSfmlTextureLoader::isConversionToPmaEnabled() const noexcept
+{
+#if defined(SPINE_4_0) || defined(SPINE_4_1_OR_LATER) || defined (SPINE_4_2_OR_LATER)
+	return !m_wasAlreadyConvertedToPma;
+#else
+	return m_toConvertToPma;
+#endif
 }
