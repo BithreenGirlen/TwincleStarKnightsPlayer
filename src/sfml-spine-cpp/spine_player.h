@@ -16,13 +16,13 @@ using CTextureLoader = CSfmlTextureLoader;
 class CSpinePlayer
 {
 public:
-	CSpinePlayer();
-	virtual ~CSpinePlayer();
+	CSpinePlayer() = default;
+	virtual ~CSpinePlayer() = default;
 
-	bool loadSpineFromFile(const std::vector<std::string>& atlasPaths, const std::vector<std::string>& skelPaths, bool isBinarySkel);
-	bool loadSpineFromMemory(const std::vector<std::string>& atlasData, const std::vector<std::string>& texturePaths, const std::vector<std::string>& skelData, bool isBinarySkel);
+	bool loadSpineFromFile(const std::vector<std::string>& atlasFilePaths, const std::vector<std::string>& skeletonFilePaths, bool isBinarySkel);
+	bool loadSpineFromMemory(const std::vector<std::string>& atlasFileData, const std::vector<std::string>& textureDirectories, const std::vector<std::string>& skeletonFileData, bool isBinarySkel);
 
-	bool addSpineFromFile(const char* szAtlasPath, const char* szSkelPath, bool isBinarySkel);
+	bool addSpineFromFile(const char* atlasPath, const char* skelPath, bool isBinarySkel);
 
 	size_t getNumberOfSpines() const noexcept;
 	bool hasSpineBeenLoaded() const noexcept;
@@ -37,42 +37,48 @@ public:
 	void shiftSkin();
 
 	void setAnimationByIndex(size_t nIndex);
-	void setAnimationByName(const char* szAnimationName);
+	void setAnimationByName(const char* animationName);
 	void restartAnimation(bool loop = true);
 
 	void setSkinByIndex(size_t nIndex);
-	void setSkinByName(const char* szSkinName);
+	void setSkinByName(const char* skinName);
 	void setupSkin();
 
-	/// @brief Toggle the state of all drawables
-	void togglePma();
-	void toggleBlendModeAdoption();
-	void togglePause();
-	void toggleVisibility();
-
+	/// @brief To perform PMA blend-mode on vertices or not.
 	/// @return false if it were out of range.
-	bool premultiplyAlpha(bool premultiplied, size_t nDrawableIndex = 0);
+	bool premultiplyAlpha(bool premultiplied, size_t nDrawableIndex = 0) noexcept;
+	void premultiplyAlphaAll(bool premultiplied) noexcept;
 	/// @return current state. If it were out of range, return false.
-	bool isAlphaPremultiplied(size_t nDrawableIndex = 0);
+	bool isAlphaPremultiplied(size_t nDrawableIndex = 0) const noexcept;
 
-	bool forceBlendModeNormal(bool toForce, size_t nDrawableIndex = 0);
-	bool isBlendModeNormalForced(size_t nDrawableIndex = 0);
+	/// @brief To force blend-mode-normal or not.
+	/// @return false if it were out of range
+	bool forceBlendModeNormal(bool toForce, size_t nDrawableIndex = 0) noexcept;
+	void forceBlendModeNormalAll(bool toForce) noexcept;
+	bool isBlendModeNormalForced(size_t nDrawableIndex = 0) const noexcept;
 
-	bool setPause(bool paused, size_t nDrawableIndex = 0);
-	bool isPaused(size_t nDrawableIndex = 0);
+	bool setPause(bool paused, size_t nDrawableIndex = 0) noexcept;
+	void setPauseAll(bool paused) noexcept;
+	bool isPaused(size_t nDrawableIndex = 0) const noexcept;
 
-	bool setVisibility(bool visible, size_t nDrawableIndex = 0);
-	bool isVisible(size_t nDrawableIndex = 0);
+	bool setVisibility(bool visible, size_t nDrawableIndex = 0) noexcept;
+	void setVisibilityAll(bool visible) noexcept;
+	bool isVisible(size_t nDrawableIndex = 0) const noexcept;
 
-	void setDrawOrder(bool reversed);
+	bool setPhysics(CSpineDrawable::Physics physics, size_t nDrawableIndex = 0) noexcept;
+	void setPhysicsAll(CSpineDrawable::Physics physics) noexcept;
+	CSpineDrawable::Physics getPhysics(size_t nDrawableIndex = 0) const noexcept;
+
+	void setDrawOrder(bool reversed) noexcept;
 	bool isDrawOrderReversed() const noexcept;
 
-	void enableConversionToPmaOnLoading(bool toEnable);
+	void enableConversionToPmaOnLoading(bool toEnable) noexcept;
 	bool isConversionToPmaOnLoadingEnabled() const noexcept;
+	void setTextureLoadCallback(void (*pFunc)(void* pUserDatum, const char* textureFilePath, size_t filePathLength, void* pOutImage), void* pUserDatum) noexcept;
 
 	/// @brief Get animation name actually entried in the track.
 	const char* getCurrentAnimationName();
-	/// @brief Get animation time actually entried in the track.
+	/// @brief Get animation time actually entried in track.
 	/// @param fTrack elapsed time since the track was entried.
 	/// @param fLast current timeline position.
 	/// @param fStart timeline start position.
@@ -81,7 +87,7 @@ public:
 	void setCurrentAnimationTime(float animationTime);
 	float getAnimationDuration(const char* animationName);
 
-	/// @brief Maybe nullptr
+	/// @brief Nullptr if none of the skins are set after loading
 	const char* getCurrentSkinName();
 
 	const std::vector<std::string>& getSlotNames() const noexcept;
@@ -117,10 +123,10 @@ public:
 	float getTimeScale() const noexcept;
 	void setTimeScale(float fTimeScale) noexcept;
 protected:
-	enum Constants { kBaseWidth = 1280, kBaseHeight = 720};
+	enum Constants { kBaseWidth = 1280, kBaseHeight = 720 };
 
 	CTextureLoader m_textureLoader;
-	std::vector<std::unique_ptr<spine::Atlas>> m_atlases;
+	std::vector<std::shared_ptr<spine::Atlas>> m_atlases;
 	std::vector<std::shared_ptr<spine::SkeletonData>> m_skeletonData;
 	std::vector<std::unique_ptr<CSpineDrawable>> m_drawables;
 
@@ -148,9 +154,8 @@ protected:
 	bool addDrawable(spine::SkeletonData* pSkeletonData);
 	bool setupDrawables();
 
-	void workOutDefaultSizeFromFileData();
 	virtual void workOutDefaultScale() = 0;
-	virtual void workOutDefaultSizeAndOffset() = 0;
+	virtual bool workOutDefaultSizeAndOffset() = 0;
 
 	void updatePosition();
 

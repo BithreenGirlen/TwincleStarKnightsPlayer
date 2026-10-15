@@ -176,12 +176,6 @@ int CSfmlMainWindow::display()
 			{
 				switch (event.scancode)
 				{
-				case sf::Keyboard::Scancode::A:
-					m_sfmlSpinePlayer->enableConversionToPmaOnLoading(!m_sfmlSpinePlayer->isConversionToPmaOnLoadingEnabled());
-					break;
-				case sf::Keyboard::Scancode::B:
-					m_sfmlSpinePlayer->toggleBlendModeAdoption();
-					break;
 				case sf::Keyboard::Scancode::C:
 					toggleTextColor();
 					break;
@@ -195,9 +189,6 @@ int CSfmlMainWindow::display()
 					break;
 				case sf::Keyboard::Scancode::H:
 					m_isHelpHidden ^= true;
-					break;
-				case sf::Keyboard::Scancode::R:
-					m_sfmlSpinePlayer->setDrawOrder(!m_sfmlSpinePlayer->isDrawOrderReversed());
 					break;
 				case sf::Keyboard::Scancode::S:
 					saveCurrentFrameImage();
@@ -225,14 +216,16 @@ int CSfmlMainWindow::display()
 
 		if (iRet != 0)break;
 
-		float fDelta = m_spineClock.getElapsedTime().asSeconds();
+		const float fDelta = m_spineClock.getElapsedTime().asSeconds();
 		m_sfmlSpinePlayer->update(fDelta);
 		m_spineClock.restart();
 
 		m_window->clear(sf::Color(0, 0, 0, 0));
 		{
+			sf::RenderStates spineRenderStates(m_sfmlSpinePlayer->calculateTransformMatrix(&m_spineRenderTexture));
+
 			m_spineRenderTexture.clear(sf::Color(0, 0, 0, 0));
-			m_sfmlSpinePlayer->redraw(&m_spineRenderTexture);
+			m_sfmlSpinePlayer->redraw(&m_spineRenderTexture, spineRenderStates);
 			m_spineRenderTexture.display();
 
 			sf::Sprite spineSprite(m_spineRenderTexture.getTexture());

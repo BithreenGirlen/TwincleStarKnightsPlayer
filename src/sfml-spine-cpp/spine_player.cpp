@@ -2,33 +2,51 @@
 #include "spine_player.h"
 #include "spine_loader.h"
 
-CSpinePlayer::CSpinePlayer()
+/*ファイル取り込み*/
+bool CSpinePlayer::loadSpineFromFile(const std::vector<std::string>& atlasFilePaths, const std::vector<std::string>& skeletonFilePaths, bool isBinarySkel)
 {
-
-}
-
-CSpinePlayer::~CSpinePlayer()
-{
-
-}
-
-
-bool CSpinePlayer::loadSpineFromFile(const std::vector<std::string>& atlasPaths, const std::vector<std::string>& skelPaths, bool isBinarySkel)
-{
-	if (atlasPaths.size() != skelPaths.size())return false;
+	if (atlasFilePaths.size() != skeletonFilePaths.size())return false;
 	clearDrawables();
 
-	for (size_t i = 0; i < atlasPaths.size(); ++i)
+	for (size_t i = 0; i < atlasFilePaths.size(); ++i)
 	{
-		const std::string& strAtlasPath = atlasPaths[i];
-		const std::string& strSkeletonPath = skelPaths[i];
+		const std::string& atlasFilePath = atlasFilePaths[i];
+		const std::string& skeletonPath = skeletonFilePaths[i];
 
-		std::unique_ptr<spine::Atlas> atlas = std::make_unique<spine::Atlas>(strAtlasPath.c_str(), &m_textureLoader);
+		std::shared_ptr<spine::Atlas> atlas = spine_loader::CreateAtlasFromFile(atlasFilePath.c_str(), &m_textureLoader);
 		if (atlas.get() == nullptr)continue;
 
 		std::shared_ptr<spine::SkeletonData> skeletonData = isBinarySkel ?
-			spine_loader::ReadBinarySkeletonFromFile(strSkeletonPath.c_str(), atlas.get(), 1.f) :
-			spine_loader::ReadTextSkeletonFromFile(strSkeletonPath.c_str(), atlas.get(), 1.f);
+			spine_loader::ReadBinarySkeletonFromFile(skeletonPath.c_str(), atlas.get()) :
+			spine_loader::ReadTextSkeletonFromFile(skeletonPath.c_str(), atlas.get());
+		if (skeletonData.get() == nullptr)return false;
+
+		m_atlases.push_back(std::move(atlas));
+		m_skeletonData.push_back(std::move(skeletonData));
+	}
+
+	if (m_skeletonData.empty())return false;
+
+	return setupDrawables();
+}
+/*メモリ取り込み*/
+bool CSpinePlayer::loadSpineFromMemory(const std::vector<std::string>& atlasFileData, const std::vector<std::string>& textureDirectories, const std::vector<std::string>& skeletonFileData, bool isBinarySkel)
+{
+	if (atlasFileData.size() != skeletonFileData.size() || atlasFileData.size() != textureDirectories.size())return false;
+	clearDrawables();
+
+	for (size_t i = 0; i < atlasFileData.size(); ++i)
+	{
+		const std::string& atlasFileDatum = atlasFileData[i];
+		const std::string& textureDirectory = textureDirectories[i];
+		const std::string& skeletonFileDatum = skeletonFileData[i];
+
+		std::shared_ptr<spine::Atlas> atlas = spine_loader::CreateAtlasFromMemory(atlasFileDatum.c_str(), static_cast<int>(atlasFileDatum.size()), textureDirectory.c_str(), &m_textureLoader);
+		if (atlas.get() == nullptr)continue;
+
+		std::shared_ptr<spine::SkeletonData> skeletonData = isBinarySkel ?
+			spine_loader::ReadBinarySkeletonFromMemory(reinterpret_cast<const unsigned char*>(skeletonFileDatum.data()), static_cast<int>(skeletonFileDatum.size()), atlas.get()) :
+			spine_loader::ReadTextSkeletonFromMemory(skeletonFileDatum.data(), atlas.get());
 		if (skeletonData.get() == nullptr)return false;
 
 		m_atlases.push_back(std::move(atlas));
@@ -40,44 +58,16 @@ bool CSpinePlayer::loadSpineFromFile(const std::vector<std::string>& atlasPaths,
 	return setupDrawables();
 }
 
-bool CSpinePlayer::loadSpineFromMemory(const std::vector<std::string>& atlasData, const std::vector<std::string>& texturePaths, const std::vector<std::string>& skelData, bool isBinarySkel)
+bool CSpinePlayer::addSpineFromFile(const char* atlasFilePath, const char* skelFilePath, bool isBinarySkel)
 {
-	if (atlasData.size() != skelData.size() || atlasData.size() != texturePaths.size())return false;
-	clearDrawables();
+	if (m_drawables.empty() || atlasFilePath == nullptr || skelFilePath == nullptr)return false;
 
-	for (size_t i = 0; i < atlasData.size(); ++i)
-	{
-		const std::string& strAtlasDatum = atlasData[i];
-		const std::string& strTexturePath = texturePaths[i];
-		const std::string& strSkeletonDatum = skelData[i];
-
-		std::unique_ptr<spine::Atlas> atlas = std::make_unique<spine::Atlas>(strAtlasDatum.c_str(), static_cast<int>(strAtlasDatum.size()), strTexturePath.c_str(), &m_textureLoader);
-		if (atlas.get() == nullptr)continue;
-
-		std::shared_ptr<spine::SkeletonData> skeletonData = isBinarySkel ?
-			spine_loader::ReadBinarySkeletonFromMemory(reinterpret_cast<const unsigned char*>(strSkeletonDatum.data()), static_cast<int>(strSkeletonDatum.size()), atlas.get(), 1.f) :
-			spine_loader::ReadTextSkeletonFromMemory(strSkeletonDatum.data(), atlas.get(), 1.f);
-		if (skeletonData.get() == nullptr)return false;
-
-		m_atlases.push_back(std::move(atlas));
-		m_skeletonData.push_back(std::move(skeletonData));
-	}
-
-	if (m_skeletonData.empty())return false;
-
-	return setupDrawables();
-}
-
-bool CSpinePlayer::addSpineFromFile(const char* szAtlasPath, const char* szSkelPath, bool isBinarySkel)
-{
-	if (m_drawables.empty() || szAtlasPath == nullptr || szSkelPath == nullptr)return false;
-
-	std::unique_ptr<spine::Atlas> atlas = std::make_unique<spine::Atlas>(szAtlasPath, &m_textureLoader);
+	std::shared_ptr<spine::Atlas> atlas = spine_loader::CreateAtlasFromFile(atlasFilePath, &m_textureLoader);
 	if (atlas.get() == nullptr)return false;
 
 	std::shared_ptr<spine::SkeletonData> skeletonData = isBinarySkel ?
-		spine_loader::ReadBinarySkeletonFromFile(szSkelPath, atlas.get(), 1.f) :
-		spine_loader::ReadTextSkeletonFromFile(szSkelPath, atlas.get(), 1.f);
+		spine_loader::ReadBinarySkeletonFromFile(skelFilePath, atlas.get()) :
+		spine_loader::ReadTextSkeletonFromFile(skelFilePath, atlas.get());
 	if (skeletonData.get() == nullptr)return false;
 
 	bool bRet = addDrawable(skeletonData.get());
@@ -105,7 +95,7 @@ bool CSpinePlayer::hasSpineBeenLoaded() const noexcept
 {
 	return !m_drawables.empty();
 }
-
+/*状態更新*/
 void CSpinePlayer::update(float fDelta)
 {
 	for (const auto& drawable : m_drawables)
@@ -113,7 +103,7 @@ void CSpinePlayer::update(float fDelta)
 		drawable->update(fDelta * m_fTimeScale);
 	}
 }
-
+/*速度・尺度・視点初期化*/
 void CSpinePlayer::resetScale()
 {
 	m_fTimeScale = 1.0f;
@@ -124,14 +114,14 @@ void CSpinePlayer::resetScale()
 
 	updatePosition();
 }
-
+/*視点移動*/
 void CSpinePlayer::addOffset(int iX, int iY)
 {
 	m_fOffset.x += iX / m_fSkeletonScale;
 	m_fOffset.y += iY / m_fSkeletonScale;
 	updatePosition();
 }
-
+/*動作移行*/
 void CSpinePlayer::shiftAnimation()
 {
 	++m_nAnimationIndex;
@@ -140,7 +130,7 @@ void CSpinePlayer::shiftAnimation()
 	clearAnimationTracks();
 	restartAnimation();
 }
-
+/*装い移行*/
 void CSpinePlayer::shiftSkin()
 {
 	if (m_skinNames.empty())return;
@@ -160,11 +150,11 @@ void CSpinePlayer::setAnimationByIndex(size_t nIndex)
 	}
 }
 
-void CSpinePlayer::setAnimationByName(const char* szAnimationName)
+void CSpinePlayer::setAnimationByName(const char* animationName)
 {
-	if (szAnimationName != nullptr)
+	if (animationName != nullptr)
 	{
-		const auto& iter = std::find(m_animationNames.begin(), m_animationNames.end(), szAnimationName);
+		const auto& iter = std::find(m_animationNames.begin(), m_animationNames.end(), animationName);
 		if (iter != m_animationNames.cend())
 		{
 			m_nAnimationIndex = std::distance(m_animationNames.begin(), iter);
@@ -172,7 +162,7 @@ void CSpinePlayer::setAnimationByName(const char* szAnimationName)
 		}
 	}
 }
-
+/*動作適用*/
 void CSpinePlayer::restartAnimation(bool loop)
 {
 	if (m_nAnimationIndex >= m_animationNames.size())return;
@@ -197,11 +187,11 @@ void CSpinePlayer::setSkinByIndex(size_t nIndex)
 	}
 }
 
-void CSpinePlayer::setSkinByName(const char* szSkinName)
+void CSpinePlayer::setSkinByName(const char* skinName)
 {
-	if (szSkinName != nullptr)
+	if (skinName != nullptr)
 	{
-		const auto& iter = std::find(m_skinNames.begin(), m_skinNames.end(), szSkinName);
+		const auto& iter = std::find(m_skinNames.begin(), m_skinNames.end(), skinName);
 		if (iter != m_skinNames.cend())
 		{
 			m_nSkinIndex = std::distance(m_skinNames.begin(), iter);
@@ -226,39 +216,7 @@ void CSpinePlayer::setupSkin()
 	}
 }
 
-void CSpinePlayer::togglePma()
-{
-	for (const auto& pDrawable : m_drawables)
-	{
-		pDrawable->premultiplyAlpha(!pDrawable->isAlphaPremultiplied());
-	}
-}
-
-void CSpinePlayer::toggleBlendModeAdoption()
-{
-	for (const auto& pDrawable : m_drawables)
-	{
-		pDrawable->forceBlendModeNormal(!pDrawable->isBlendModeNormalForced());
-	}
-}
-
-void CSpinePlayer::togglePause()
-{
-	for (const auto& pDrawable : m_drawables)
-	{
-		pDrawable->setPause(!pDrawable->isPaused());
-	}
-}
-
-void CSpinePlayer::toggleVisibility()
-{
-	for (const auto& pDrawable : m_drawables)
-	{
-		pDrawable->setVisibility(!pDrawable->isVisible());
-	}
-}
-
-bool CSpinePlayer::premultiplyAlpha(bool premultiplied, size_t nDrawableIndex)
+bool CSpinePlayer::premultiplyAlpha(bool premultiplied, size_t nDrawableIndex) noexcept
 {
 	if (nDrawableIndex < m_drawables.size())
 	{
@@ -269,7 +227,15 @@ bool CSpinePlayer::premultiplyAlpha(bool premultiplied, size_t nDrawableIndex)
 	return false;
 }
 
-bool CSpinePlayer::isAlphaPremultiplied(size_t nDrawableIndex)
+void CSpinePlayer::premultiplyAlphaAll(bool premultiplied) noexcept
+{
+	for (const auto& pDrawable : m_drawables)
+	{
+		pDrawable->premultiplyAlpha(premultiplied);
+	}
+}
+
+bool CSpinePlayer::isAlphaPremultiplied(size_t nDrawableIndex) const noexcept
 {
 	if (nDrawableIndex < m_drawables.size())
 	{
@@ -279,7 +245,7 @@ bool CSpinePlayer::isAlphaPremultiplied(size_t nDrawableIndex)
 	return false;
 }
 
-bool CSpinePlayer::forceBlendModeNormal(bool toForce, size_t nDrawableIndex)
+bool CSpinePlayer::forceBlendModeNormal(bool toForce, size_t nDrawableIndex) noexcept
 {
 	if (nDrawableIndex < m_drawables.size())
 	{
@@ -290,7 +256,15 @@ bool CSpinePlayer::forceBlendModeNormal(bool toForce, size_t nDrawableIndex)
 	return false;
 }
 
-bool CSpinePlayer::isBlendModeNormalForced(size_t nDrawableIndex)
+void CSpinePlayer::forceBlendModeNormalAll(bool toForce) noexcept
+{
+	for (const auto& pDrawable : m_drawables)
+	{
+		pDrawable->forceBlendModeNormal(toForce);
+	}
+}
+
+bool CSpinePlayer::isBlendModeNormalForced(size_t nDrawableIndex) const noexcept
 {
 	if (nDrawableIndex < m_drawables.size())
 	{
@@ -300,7 +274,7 @@ bool CSpinePlayer::isBlendModeNormalForced(size_t nDrawableIndex)
 	return false;
 }
 
-bool CSpinePlayer::setPause(bool paused, size_t nDrawableIndex)
+bool CSpinePlayer::setPause(bool paused, size_t nDrawableIndex) noexcept
 {
 	if (nDrawableIndex < m_drawables.size())
 	{
@@ -311,7 +285,15 @@ bool CSpinePlayer::setPause(bool paused, size_t nDrawableIndex)
 	return false;
 }
 
-bool CSpinePlayer::isPaused(size_t nDrawableIndex)
+void CSpinePlayer::setPauseAll(bool paused) noexcept
+{
+	for (const auto& pDrawable : m_drawables)
+	{
+		pDrawable->setPause(paused);
+	}
+}
+
+bool CSpinePlayer::isPaused(size_t nDrawableIndex) const noexcept
 {
 	if (nDrawableIndex < m_drawables.size())
 	{
@@ -321,7 +303,7 @@ bool CSpinePlayer::isPaused(size_t nDrawableIndex)
 	return false;
 }
 
-bool CSpinePlayer::setVisibility(bool visible, size_t nDrawableIndex)
+bool CSpinePlayer::setVisibility(bool visible, size_t nDrawableIndex) noexcept
 {
 	if (nDrawableIndex < m_drawables.size())
 	{
@@ -332,7 +314,15 @@ bool CSpinePlayer::setVisibility(bool visible, size_t nDrawableIndex)
 	return false;
 }
 
-bool CSpinePlayer::isVisible(size_t nDrawableIndex)
+void CSpinePlayer::setVisibilityAll(bool visible) noexcept
+{
+	for (const auto& pDrawable : m_drawables)
+	{
+		pDrawable->setVisibility(visible);
+	}
+}
+
+bool CSpinePlayer::isVisible(size_t nDrawableIndex) const noexcept
 {
 	if (nDrawableIndex < m_drawables.size())
 	{
@@ -342,7 +332,36 @@ bool CSpinePlayer::isVisible(size_t nDrawableIndex)
 	return false;
 }
 
-void CSpinePlayer::setDrawOrder(bool reversed)
+bool CSpinePlayer::setPhysics(CSpineDrawable::Physics physics, size_t nDrawableIndex) noexcept
+{
+	if (nDrawableIndex < m_drawables.size())
+	{
+		m_drawables[nDrawableIndex]->setPhysics(physics);
+		return true;
+	}
+
+	return false;
+}
+
+void CSpinePlayer::setPhysicsAll(CSpineDrawable::Physics physics) noexcept
+{
+	for (const auto& pDrawable : m_drawables)
+	{
+		pDrawable->setPhysics(physics);
+	}
+}
+
+CSpineDrawable::Physics CSpinePlayer::getPhysics(size_t nDrawableIndex) const noexcept
+{
+	if (nDrawableIndex < m_drawables.size())
+	{
+		return m_drawables[nDrawableIndex]->getPhysics();
+	}
+
+	return CSpineDrawable::Physics::Update;
+}
+
+void CSpinePlayer::setDrawOrder(bool reversed) noexcept
 {
 	m_isDrawOrderReversed = reversed;
 }
@@ -352,7 +371,7 @@ bool CSpinePlayer::isDrawOrderReversed() const noexcept
 	return m_isDrawOrderReversed;
 }
 
-void CSpinePlayer::enableConversionToPmaOnLoading(bool toEnable)
+void CSpinePlayer::enableConversionToPmaOnLoading(bool toEnable) noexcept
 {
 	m_textureLoader.enableConversionToPma(toEnable);
 }
@@ -360,6 +379,11 @@ void CSpinePlayer::enableConversionToPmaOnLoading(bool toEnable)
 bool CSpinePlayer::isConversionToPmaOnLoadingEnabled() const noexcept
 {
 	return m_textureLoader.isConversionToPmaEnabled();
+}
+
+void CSpinePlayer::setTextureLoadCallback(void(*pFunc)(void* pUserDatum, const char* textureFilePath, size_t filePathLength, void* pOutImage), void* pUserDatum) noexcept
+{
+	m_textureLoader.setTextureLoadCallback(pFunc, pUserDatum);
 }
 
 const char* CSpinePlayer::getCurrentAnimationName()
@@ -407,10 +431,7 @@ void CSpinePlayer::setCurrentAnimationTime(float animationTime)
 
 	for (const auto& pDrawable : m_drawables)
 	{
-		bool wasPaused = pDrawable->isPaused();
-		if (wasPaused)pDrawable->setPause(false);
 		pDrawable->update(animationTime);
-		if (wasPaused)pDrawable->setPause(true);
 
 		auto& tracks = pDrawable->animationState()->getTracks();
 		for (size_t i = 0; i < tracks.size(); ++i)
@@ -536,7 +557,7 @@ void CSpinePlayer::mixAnimations(const char* fadeOutAnimationName, const char* f
 
 void CSpinePlayer::clearMixedAnimation()
 {
-#ifdef SPINE_4_1_OR_LATER
+#if defined(SPINE_41) || defined(SPINE_42)
 	for (const auto& pDrawable : m_drawables)
 	{
 		pDrawable->animationState()->getData()->clear();
@@ -675,7 +696,7 @@ bool CSpinePlayer::replaceAttachment(const char* szSlotName, const char* szAttac
 
 	return true;
 }
-
+/*寸法受け渡し*/
 FPoint2 CSpinePlayer::getBaseSize() const noexcept
 {
 	return m_fBaseSize;
@@ -701,7 +722,23 @@ void CSpinePlayer::resetBaseSize()
 		drawable->update(0.f);
 	}
 
-	workOutDefaultSizeAndOffset();
+	/*
+	* If empty animation has vertices, fit to the bounding-box of them.
+	* If not, set an animation and fit to the bounding-box of that animation.
+	*/
+	const bool hasVertices = workOutDefaultSizeAndOffset();
+	if (!hasVertices)
+	{
+		restartAnimation();
+
+		for (const auto& drawable : m_drawables)
+		{
+			drawable->update(0.f);
+		}
+
+		workOutDefaultSizeAndOffset();
+	}
+
 	updatePosition();
 	for (const auto& drawable : m_drawables)
 	{
@@ -710,10 +747,12 @@ void CSpinePlayer::resetBaseSize()
 
 	workOutDefaultSizeAndOffset();
 	workOutDefaultScale();
-
 	resetScale();
 
-	restartAnimation();
+	if (hasVertices)
+	{
+		restartAnimation();
+	}
 }
 
 FPoint2 CSpinePlayer::getOffset() const noexcept
@@ -755,7 +794,7 @@ void CSpinePlayer::setTimeScale(float fTimeScale) noexcept
 {
 	m_fTimeScale = fTimeScale;
 }
-
+/*消去*/
 void CSpinePlayer::clearDrawables()
 {
 	m_drawables.clear();
@@ -776,9 +815,6 @@ bool CSpinePlayer::addDrawable(spine::SkeletonData* pSkeletonData)
 	if (pSkeletonData == nullptr)return false;
 	auto pDrawable = std::make_unique<CSpineDrawable>(pSkeletonData);
 	if (pDrawable.get() == nullptr)return false;
-
-	pDrawable->skeleton()->setPosition(m_fBaseSize.x / 2, m_fBaseSize.y / 2);
-	pDrawable->update(0.f);
 
 	m_drawables.push_back(std::move(pDrawable));
 
@@ -813,9 +849,9 @@ bool CSpinePlayer::setupDrawables()
 		}
 
 		auto& slots = pSkeletonDatum->getSlots();
-		for (size_t i = 0; i < slots.size(); ++i)
+		for (size_t ii = 0; ii < slots.size(); ++ii)
 		{
-			const char* szName = slots[i]->getName().buffer();
+			const char* szName = slots[ii]->getName().buffer();
 			const auto& iter = std::find(m_slotNames.begin(), m_slotNames.end(), szName);
 			if (iter == m_slotNames.cend())m_slotNames.push_back(szName);
 		}
@@ -825,74 +861,7 @@ bool CSpinePlayer::setupDrawables()
 
 	return m_animationNames.size() > 0;
 }
-
-void CSpinePlayer::workOutDefaultSizeFromFileData()
-{
-	if (m_skeletonData.empty())return;
-
-	float fMaxSize = 0.f;
-	const auto CompareDimention = [this, &fMaxSize](float fWidth, float fHeight)
-		-> bool
-		{
-			if (fWidth > 0.f && fHeight > 0.f && fWidth * fHeight > fMaxSize)
-			{
-				m_fBaseSize.x = fWidth;
-				m_fBaseSize.y = fHeight;
-				fMaxSize = fWidth * fHeight;
-				return true;
-			}
-
-			return false;
-		};
-
-	for (const auto& pSkeletonData : m_skeletonData)
-	{
-		if (pSkeletonData.get()->getWidth() > 0 && pSkeletonData.get()->getHeight())
-		{
-			CompareDimention(pSkeletonData.get()->getWidth(), pSkeletonData.get()->getHeight());
-		}
-		else
-		{
-			const auto FindDefaultSkinAttachment = [&pSkeletonData]()
-				-> spine::Attachment*
-				{
-					spine::Skin::AttachmentMap::Entries attachmentMapEntries = pSkeletonData.get()->getDefaultSkin()->getAttachments();
-					for (; attachmentMapEntries.hasNext();)
-					{
-						spine::Skin::AttachmentMap::Entry attachmentMapEntry = attachmentMapEntries.next();
-						if (attachmentMapEntry._slotIndex == 0)
-						{
-							return attachmentMapEntry._attachment;
-						}
-					}
-					return nullptr;
-				};
-
-			spine::Attachment* pAttachment = FindDefaultSkinAttachment();
-			if (pAttachment == nullptr)continue;
-
-			if (pAttachment->getRTTI().isExactly(spine::RegionAttachment::rtti))
-			{
-				spine::RegionAttachment* pRegionAttachment = (spine::RegionAttachment*)pAttachment;
-
-				CompareDimention(pRegionAttachment->getWidth() * pRegionAttachment->getScaleX(), pRegionAttachment->getHeight() * pRegionAttachment->getScaleY());
-			}
-			else if (pAttachment->getRTTI().isExactly(spine::MeshAttachment::rtti))
-			{
-				spine::MeshAttachment* pMeshAttachment = (spine::MeshAttachment*)pAttachment;
-
-				static constexpr float kMinAtlas = 1024.f;
-
-				float fScale =
-					::isgreater(pMeshAttachment->getWidth(), kMinAtlas) &&
-					::isgreater(pMeshAttachment->getHeight(), kMinAtlas) ? 1.f : 2.f;
-
-				CompareDimention(pMeshAttachment->getWidth() * fScale, pMeshAttachment->getHeight() * fScale);
-			}
-		}
-	}
-}
-
+/*位置適用*/
 void CSpinePlayer::updatePosition()
 {
 	for (const auto& pDrawable : m_drawables)

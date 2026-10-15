@@ -1,4 +1,4 @@
-# TwincleStarKnightsPlayer
+﻿# TwincleStarKnightsPlayer
 
 某寝室再生機
 
@@ -62,7 +62,6 @@ The scene will be set up based on `CharaScenarioXXXXXXX.book.json` if exists.
 ## Keyboard functions
 | Input | Action |
 | --- | --- |
-| <kbd>B</kbd> | Turn on/off forcing blend-mode-normal. |
 | <kbd>C</kbd> | Toggle text colour between black and white. |
 | <kbd>H</kbd> | Hide/show help. |
 | <kbd>S</kbd> | Save the current frame as image. |
@@ -74,7 +73,6 @@ The scene will be set up based on `CharaScenarioXXXXXXX.book.json` if exists.
 | <kbd>Right</kbd> | Fast-forward the text. |
 | <kbd>Left</kbd> | Rewind the text. |
 
-- Some scenes require forcing blend-mode `Normal` instead of `Multiply`.
 - When synchronisation is turned off, left click shifts the animation.
 
 ## Preferences

@@ -2,11 +2,19 @@
 
 #include "sfml_spine.h"
 
+#if defined(SPINE_42)
+static_assert(static_cast<spine::Physics>(CSfmlSpineDrawable::Physics::None) == spine::Physics::Physics_None, "Physics_None");
+static_assert(static_cast<spine::Physics>(CSfmlSpineDrawable::Physics::Reset) == spine::Physics::Physics_Reset, "Physics_Reset");
+static_assert(static_cast<spine::Physics>(CSfmlSpineDrawable::Physics::Update) == spine::Physics::Physics_Update, "Physics_Update");
+static_assert(static_cast<spine::Physics>(CSfmlSpineDrawable::Physics::Pose) == spine::Physics::Physics_Pose, "Physics_Pose");
+#endif
+
 namespace spine
 {
 	SpineExtension* getDefaultExtension()
 	{
-		return new DefaultSpineExtension();
+		static DefaultSpineExtension s_defaultSpineExtension;
+		return &s_defaultSpineExtension;
 	}
 }
 
@@ -23,7 +31,7 @@ static sf::BlendMode g_sfmlBlendModeMultiply = sf::BlendMode
 	sf::BlendMode::Equation::Add
 );
 
-CSfmlSpineDrawable::CSfmlSpineDrawable(spine::SkeletonData* pSkeletonData, spine::AnimationStateData* pAnimationStateData)
+CSfmlSpineDrawable::CSfmlSpineDrawable(spine::SkeletonData* pSkeletonData)
 {
 	spine::Bone::setYDown(true);
 
@@ -31,31 +39,16 @@ CSfmlSpineDrawable::CSfmlSpineDrawable(spine::SkeletonData* pSkeletonData, spine
 	m_sfmlVertices.setPrimitiveType(sf::PrimitiveType::Triangles);
 
 	m_skeleton = new spine::Skeleton(pSkeletonData);
-
-	if (pAnimationStateData == nullptr)
-	{
-		pAnimationStateData = new spine::AnimationStateData(pSkeletonData);
-		m_hasOwnAnimationStateData = true;
-	}
-
+	spine::AnimationStateData* pAnimationStateData = new spine::AnimationStateData(pSkeletonData);
 	m_animationState = new spine::AnimationState(pAnimationStateData);
-
-	m_quadIndices.add(0);
-	m_quadIndices.add(1);
-	m_quadIndices.add(2);
-	m_quadIndices.add(2);
-	m_quadIndices.add(3);
-	m_quadIndices.add(0);
 }
 
 CSfmlSpineDrawable::~CSfmlSpineDrawable()
 {
 	if (m_animationState != nullptr)
 	{
-		if (m_hasOwnAnimationStateData)
-		{
-			delete m_animationState->getData();
-		}
+		spine::AnimationStateData* pAnimationStateData = m_animationState->getData();
+		delete pAnimationStateData;
 
 		delete m_animationState;
 	}
@@ -115,6 +108,16 @@ bool CSfmlSpineDrawable::isVisible() const noexcept
 	return m_isVisible;
 }
 
+void CSfmlSpineDrawable::setPhysics(Physics physics) noexcept
+{
+	m_physics = physics;
+}
+
+CSfmlSpineDrawable::Physics CSfmlSpineDrawable::getPhysics() const noexcept
+{
+	return m_physics;
+}
+
 void CSfmlSpineDrawable::update(float fDelta)
 {
 	if (m_skeleton != nullptr && m_animationState != nullptr)
@@ -122,13 +125,13 @@ void CSfmlSpineDrawable::update(float fDelta)
 		if (!m_isPaused)m_animationState->update(fDelta);
 		m_animationState->apply(*m_skeleton);
 
-		/* Spine 4.1 does not have Skeleton::update() */
-#if !defined(SPINE_4_1_OR_LATER) || defined (SPINE_4_2_OR_LATER)
+		/* Spine 4.1 does not have "Skeleton::update()" */
+#if !defined(SPINE_41)
 		if (!m_isPaused)m_skeleton->update(fDelta);
 #endif
 
-#ifdef SPINE_4_2_OR_LATER
-		m_skeleton->updateWorldTransform(spine::Physics::Physics_Update);
+#if defined(SPINE_42)
+		m_skeleton->updateWorldTransform(static_cast<spine::Physics>(m_physics));
 #else
 		m_skeleton->updateWorldTransform();
 #endif
@@ -137,11 +140,13 @@ void CSfmlSpineDrawable::update(float fDelta)
 
 void CSfmlSpineDrawable::draw(sf::RenderTarget& renderTarget, sf::RenderStates renderStates) const
 {
+	static unsigned short s_quadIndices[] = { 0, 1, 2, 2, 3, 0 };
+
 	if (!m_isVisible)return;
 	if (m_skeleton == nullptr || m_animationState == nullptr)return;
 	if (m_skeleton->getColor().a == 0)return;
 
-	for (unsigned i = 0; i < m_skeleton->getSlots().size(); ++i)
+	for (size_t i = 0; i < m_skeleton->getSlots().size(); ++i)
 	{
 		spine::Slot& slot = *m_skeleton->getDrawOrder()[i];
 		spine::Attachment* pAttachment = slot.getAttachment();
@@ -160,7 +165,8 @@ void CSfmlSpineDrawable::draw(sf::RenderTarget& renderTarget, sf::RenderStates r
 
 		spine::Vector<float>* pVertices = &m_worldVertices;
 		spine::Vector<float>* pAttachmentUvs = nullptr;
-		spine::Vector<unsigned short>* pIndices = nullptr;
+		unsigned short* pIndices = nullptr;
+		size_t nIndicesCount = 0;
 
 		spine::Color* pAttachmentColor = nullptr;
 
@@ -178,22 +184,23 @@ void CSfmlSpineDrawable::draw(sf::RenderTarget& renderTarget, sf::RenderStates r
 			}
 
 			m_worldVertices.setSize(8, 0);
-#ifdef SPINE_4_1_OR_LATER
+#if defined (SPINE_41) || defined (SPINE_42)
 			pRegionAttachment->computeWorldVertices(slot, m_worldVertices, 0, 2);
 #else
 			pRegionAttachment->computeWorldVertices(slot.getBone(), m_worldVertices, 0, 2);
 #endif
 			pAttachmentUvs = &pRegionAttachment->getUVs();
-			pIndices = &m_quadIndices;
+			pIndices = s_quadIndices;
+			nIndicesCount = sizeof(s_quadIndices) / sizeof(unsigned short);
 
-#ifdef SPINE_4_1_OR_LATER
+#if defined (SPINE_41) || defined (SPINE_42)
 			spine::AtlasRegion* pAtlasRegion = static_cast<spine::AtlasRegion*>(pRegionAttachment->getRegion());
 
 			m_isAlphaPremultiplied = pAtlasRegion->page->pma;
 			pSfmlTexture = reinterpret_cast<sf::Texture*>(pAtlasRegion->rendererObject);
 #else
 			spine::AtlasRegion* pAtlasRegion = static_cast<spine::AtlasRegion*>(pRegionAttachment->getRendererObject());
-#ifdef SPINE_4_0
+#ifdef SPINE_40
 			m_isAlphaPremultiplied = pAtlasRegion->page->pma;
 #endif
 			pSfmlTexture = reinterpret_cast<sf::Texture*>(pAtlasRegion->page->getRendererObject());
@@ -214,16 +221,17 @@ void CSfmlSpineDrawable::draw(sf::RenderTarget& renderTarget, sf::RenderStates r
 			pMeshAttachment->computeWorldVertices(slot, 0, pMeshAttachment->getWorldVerticesLength(), m_worldVertices, 0, 2);
 
 			pAttachmentUvs = &pMeshAttachment->getUVs();
-			pIndices = &pMeshAttachment->getTriangles();
+			pIndices = pMeshAttachment->getTriangles().buffer();
+			nIndicesCount = pMeshAttachment->getTriangles().size();
 
-#ifdef SPINE_4_1_OR_LATER
+#if defined (SPINE_41) || defined (SPINE_42)
 			spine::AtlasRegion* pAtlasRegion = static_cast<spine::AtlasRegion*>(pMeshAttachment->getRegion());
 
 			m_isAlphaPremultiplied = pAtlasRegion->page->pma;
 			pSfmlTexture = reinterpret_cast<sf::Texture*>(pAtlasRegion->rendererObject);
 #else
 			spine::AtlasRegion* pAtlasRegion = static_cast<spine::AtlasRegion*>(pMeshAttachment->getRendererObject());
-#ifdef SPINE_4_0
+#ifdef SPINE_40
 			m_isAlphaPremultiplied = pAtlasRegion->page->pma;
 #endif
 			pSfmlTexture = reinterpret_cast<sf::Texture*>(pAtlasRegion->page->getRendererObject());
@@ -239,42 +247,52 @@ void CSfmlSpineDrawable::draw(sf::RenderTarget& renderTarget, sf::RenderStates r
 
 		if (m_clipper.isClipping())
 		{
-			m_clipper.clipTriangles(m_worldVertices, *pIndices, *pAttachmentUvs, 2);
+			m_clipper.clipTriangles(m_worldVertices.buffer(), pIndices, nIndicesCount, pAttachmentUvs->buffer(), 2);
+			if (m_clipper.getClippedTriangles().size() == 0)
+			{
+				m_clipper.clipEnd(slot);
+				continue;
+			}
 			pVertices = &m_clipper.getClippedVertices();
 			pAttachmentUvs = &m_clipper.getClippedUVs();
-			pIndices = &m_clipper.getClippedTriangles();
+			pIndices = m_clipper.getClippedTriangles().buffer();
+			nIndicesCount = m_clipper.getClippedTriangles().size();
 		}
 
 		const spine::Color& skeletonColor = m_skeleton->getColor();
 		const spine::Color& slotColor = slot.getColor();
-		const spine::Color tint
+		const spine::Color spineVertexColor
 		(
 			skeletonColor.r * slotColor.r * pAttachmentColor->r,
 			skeletonColor.g * slotColor.g * pAttachmentColor->g,
 			skeletonColor.b * slotColor.b * pAttachmentColor->b,
 			skeletonColor.a * slotColor.a * pAttachmentColor->a
 		);
+		const sf::Color sfmlVertexColor
+		(
+			static_cast<std::uint8_t>(spineVertexColor.r * 255.f * (m_isAlphaPremultiplied ? spineVertexColor.a : 1.f)),
+			static_cast<std::uint8_t>(spineVertexColor.g * 255.f * (m_isAlphaPremultiplied ? spineVertexColor.a : 1.f)),
+			static_cast<std::uint8_t>(spineVertexColor.b * 255.f * (m_isAlphaPremultiplied ? spineVertexColor.a : 1.f)),
+			static_cast<std::uint8_t>(spineVertexColor.a * 255.f)
+		);
 		const sf::Vector2u& textureSize = pSfmlTexture->getSize();
 
-		m_sfmlVertices.resize(pIndices->size());
-		for (int ii = 0; ii < pIndices->size(); ++ii)
+		m_sfmlVertices.resize(nIndicesCount);
+		for (size_t ii = 0; ii < nIndicesCount; ++ii)
 		{
 			sf::Vertex& sfmlVertex = m_sfmlVertices[ii];
 
-			sfmlVertex.position.x = (*pVertices)[(*pIndices)[ii] * 2LL];
-			sfmlVertex.position.y = (*pVertices)[(*pIndices)[ii] * 2LL + 1];
+			sfmlVertex.position.x = (*pVertices)[pIndices[ii] * 2LL];
+			sfmlVertex.position.y = (*pVertices)[pIndices[ii] * 2LL + 1];
 
-			sfmlVertex.color.r = (std::uint8_t)(tint.r * 255.f * (m_isAlphaPremultiplied ? tint.a : 1.f));
-			sfmlVertex.color.g = (std::uint8_t)(tint.g * 255.f * (m_isAlphaPremultiplied ? tint.a : 1.f));
-			sfmlVertex.color.b = (std::uint8_t)(tint.b * 255.f * (m_isAlphaPremultiplied ? tint.a : 1.f));
-			sfmlVertex.color.a = (std::uint8_t)(tint.a * 255.f);
+			sfmlVertex.color = sfmlVertexColor;
 
-			sfmlVertex.texCoords.x = (*pAttachmentUvs)[(*pIndices)[ii] * 2LL] * textureSize.x;
-			sfmlVertex.texCoords.y = (*pAttachmentUvs)[(*pIndices)[ii] * 2LL + 1] * textureSize.y;
+			sfmlVertex.texCoords.x = (*pAttachmentUvs)[pIndices[ii] * 2LL] * textureSize.x;
+			sfmlVertex.texCoords.y = (*pAttachmentUvs)[pIndices[ii] * 2LL + 1] * textureSize.y;
 		}
 
 		sf::BlendMode sfmlBlendMode;
-		spine::BlendMode spineBlnedMode = m_isToForceBlendModeNormal ? spine::BlendMode_Normal : slot.getData().getBlendMode();
+		const spine::BlendMode spineBlnedMode = m_isToForceBlendModeNormal ? spine::BlendMode_Normal : slot.getData().getBlendMode();
 		switch (spineBlnedMode)
 		{
 		case spine::BlendMode_Additive:
@@ -305,20 +323,24 @@ void CSfmlSpineDrawable::setLeaveOutList(spine::Vector<spine::String>& list)
 	m_leaveOutList.clearAndAddAll(list);
 }
 
-sf::FloatRect CSfmlSpineDrawable::getBoundingBox() const
+void CSfmlSpineDrawable::setLeaveOutCallback(bool(*pFunc)(const char*, size_t)) noexcept
+{
+	m_pLeaveOutCallback = pFunc;
+}
+
+sf::FloatRect CSfmlSpineDrawable::getBoundingBox()
 {
 	sf::FloatRect boundingBox{};
 
 	if (m_skeleton != nullptr)
 	{
-		spine::Vector<float> tempVertices;
-		m_skeleton->getBounds(boundingBox.position.x, boundingBox.position.y, boundingBox.size.x, boundingBox.size.y, tempVertices);
+		m_skeleton->getBounds(boundingBox.position.x, boundingBox.position.y, boundingBox.size.x, boundingBox.size.y, m_tempVertices);
 	}
 
 	return boundingBox;
 }
 
-sf::FloatRect CSfmlSpineDrawable::getBoundingBoxOfSlot(const char* slotName, size_t nameLength, bool* found) const
+sf::FloatRect CSfmlSpineDrawable::getBoundingBoxOfSlot(const char* slotName, size_t nameLength, bool* found)
 {
 	float fMinX = FLT_MAX;
 	float fMinY = FLT_MAX;
@@ -338,33 +360,32 @@ sf::FloatRect CSfmlSpineDrawable::getBoundingBoxOfSlot(const char* slotName, siz
 				spine::Attachment* pAttachment = slot.getAttachment();
 				if (pAttachment != nullptr)
 				{
-					spine::Vector<float> tempVertices;
 					if (pAttachment->getRTTI().isExactly(spine::RegionAttachment::rtti))
 					{
 						spine::RegionAttachment* pRegionAttachment = static_cast<spine::RegionAttachment*>(pAttachment);
 
-						tempVertices.setSize(8, 0);
-#ifdef SPINE_4_1_OR_LATER
-						pRegionAttachment->computeWorldVertices(slot, tempVertices, 0, 2);
+						m_tempVertices.setSize(8, 0);
+#if defined (SPINE_41) || defined (SPINE_42)
+						pRegionAttachment->computeWorldVertices(slot, m_tempVertices, 0, 2);
 #else
-						pRegionAttachment->computeWorldVertices(slot.getBone(), tempVertices, 0, 2);
+						pRegionAttachment->computeWorldVertices(slot.getBone(), m_tempVertices, 0, 2);
 #endif
 					}
 					else if (pAttachment->getRTTI().isExactly(spine::MeshAttachment::rtti))
 					{
 						spine::MeshAttachment* pMeshAttachment = static_cast<spine::MeshAttachment*>(pAttachment);
-						tempVertices.setSize(pMeshAttachment->getWorldVerticesLength(), 0);
-						pMeshAttachment->computeWorldVertices(slot, 0, pMeshAttachment->getWorldVerticesLength(), tempVertices, 0, 2);
+						m_tempVertices.setSize(pMeshAttachment->getWorldVerticesLength(), 0);
+						pMeshAttachment->computeWorldVertices(slot, 0, pMeshAttachment->getWorldVerticesLength(), m_tempVertices, 0, 2);
 					}
 					else
 					{
 						continue;
 					}
 
-					for (size_t ii = 0; ii < tempVertices.size(); ii += 2)
+					for (size_t ii = 0; ii < m_tempVertices.size(); ii += 2)
 					{
-						float fX = tempVertices[ii];
-						float fY = tempVertices[ii + 1LL];
+						const float fX = m_tempVertices[ii];
+						const float fY = m_tempVertices[ii + 1LL];
 
 						fMinX = fMinX < fX ? fMinX : fX;
 						fMinY = fMinY < fY ? fMinY : fY;
@@ -397,29 +418,39 @@ bool CSfmlSpineDrawable::isSlotToBeLeftOut(const spine::String& slotName) const
 	return false;
 }
 
-void CSfmlTextureLoader::load(spine::AtlasPage& atlasPage, const spine::String& path)
+void CSfmlTextureLoader::load(spine::AtlasPage& atlasPage, const spine::String& textureFilePath)
 {
 	sf::Image sfImage;
-	if (!sfImage.loadFromFile(path.buffer()))
+	if (m_pTextureLoadCallback != nullptr)
 	{
-		/* SFML does not have logger. */
-		return;
+		m_pTextureLoadCallback(m_pCallbackUserDatum, textureFilePath.buffer(), textureFilePath.length(), &sfImage);
 	}
 
-	/* Todo: Abandon "_LATER" suffix and adopt explicit name like "SPINE_40" as is already done for runtimes for SDL3, Siv3D, and DxLib. */
-#if defined(SPINE_4_0) || defined(SPINE_4_1_OR_LATER) || defined (SPINE_4_2_OR_LATER)
-	bool toConvertToPma = !atlasPage.pma && !m_wasAlreadyConvertedToPma;
+	/* No empty-like method. */
+	if (sfImage.getPixelsPtr() == nullptr)
+	{
+		if (!sfImage.loadFromFile(textureFilePath.buffer()))
+		{
+			/* SFML does not have logger. */
+			return;
+		}
+	}
+
+#if defined(SPINE_40) || defined(SPINE_41) || defined (SPINE_42)
+	const bool toConvertToPma = !atlasPage.pma && !m_wasAlreadyConvertedToPma;
+	if (toConvertToPma)
+	{
+		atlasPage.pma = true;
+	}
 #else
-	bool toConvertToPma = m_toConvertToPma;
+	const bool toConvertToPma = m_toConvertToPma;
 #endif
 	if (toConvertToPma)
 	{
-		/* Too tedious; sf::Image should have an operator to be written like : "for (auto& pixel : sfImage){ ... }" */
-
-		sf::Vector2u imageDimention = sfImage.getSize();
-		for (unsigned int y = 0; y < imageDimention.y; ++y)
+		const sf::Vector2u imageDimension = sfImage.getSize();
+		for (unsigned int y = 0; y < imageDimension.y; ++y)
 		{
-			for (unsigned int x = 0; x < imageDimention.x; ++x)
+			for (unsigned int x = 0; x < imageDimension.x; ++x)
 			{
 				sf::Color pixel = sfImage.getPixel({ x, y });
 
@@ -445,8 +476,18 @@ void CSfmlTextureLoader::load(spine::AtlasPage& atlasPage, const spine::String& 
 		return;
 	}
 
-	if (atlasPage.magFilter == spine::TextureFilter_Linear) pTexture->setSmooth(true);
-	if (atlasPage.uWrap == spine::TextureWrap_Repeat && atlasPage.vWrap == spine::TextureWrap_Repeat) pTexture->setRepeated(true);
+	if (atlasPage.magFilter == spine::TextureFilter_Linear)
+	{
+		pTexture->setSmooth(true);
+	}
+	if (atlasPage.uWrap == spine::TextureWrap_Repeat && atlasPage.vWrap == spine::TextureWrap_Repeat)
+	{
+		pTexture->setRepeated(true);
+	}
+	if (m_toGenerateMipmap)
+	{
+		[[maybe_unused]] const bool hasGeneratedMipmap = pTexture->generateMipmap();
+	}
 
 	/* Overwring will collapse UV coördinate.*/
 #if 0
@@ -458,7 +499,7 @@ void CSfmlTextureLoader::load(spine::AtlasPage& atlasPage, const spine::String& 
 	}
 #endif
 
-#ifdef SPINE_4_1_OR_LATER
+#if defined (SPINE_41) || defined (SPINE_42)
 	atlasPage.texture = pTexture;
 #else
 	atlasPage.setRendererObject(pTexture);
@@ -470,9 +511,9 @@ void CSfmlTextureLoader::unload(void* texture)
 	delete static_cast<sf::Texture*>(texture);
 }
 
-void CSfmlTextureLoader::enableConversionToPma(bool toEnable)
+void CSfmlTextureLoader::enableConversionToPma(bool toEnable) noexcept
 {
-#if defined(SPINE_4_0) || defined(SPINE_4_1_OR_LATER) || defined (SPINE_4_2_OR_LATER)
+#if defined(SPINE_40) || defined(SPINE_41) || defined (SPINE_42)
 	m_wasAlreadyConvertedToPma = !toEnable;
 #else
 	m_toConvertToPma = toEnable;
@@ -481,9 +522,25 @@ void CSfmlTextureLoader::enableConversionToPma(bool toEnable)
 
 bool CSfmlTextureLoader::isConversionToPmaEnabled() const noexcept
 {
-#if defined(SPINE_4_0) || defined(SPINE_4_1_OR_LATER) || defined (SPINE_4_2_OR_LATER)
+#if defined(SPINE_40) || defined(SPINE_41) || defined (SPINE_42)
 	return !m_wasAlreadyConvertedToPma;
 #else
 	return m_toConvertToPma;
 #endif
+}
+
+void CSfmlTextureLoader::enableGeneratingMipmap(bool toGenerate) noexcept
+{
+	m_toGenerateMipmap = toGenerate;
+}
+
+bool CSfmlTextureLoader::isMipmapToBeGenerated() const noexcept
+{
+	return m_toGenerateMipmap;
+}
+
+void CSfmlTextureLoader::setTextureLoadCallback(void(*pFunc)(void* pUserDatum, const char* textureFilePath, size_t filePathLength, void* pOutImage), void* pUserDatum)
+{
+	m_pTextureLoadCallback = pFunc;
+	m_pCallbackUserDatum = pUserDatum;
 }
