@@ -188,7 +188,7 @@ int CSfmlMainWindow::display()
 					}
 					break;
 				case sf::Keyboard::Scancode::H:
-					m_isHelpHidden ^= true;
+					m_sceneState.isHelpHidden ^= true;
 					break;
 				case sf::Keyboard::Scancode::S:
 					saveCurrentFrameImage();
@@ -232,12 +232,12 @@ int CSfmlMainWindow::display()
 			m_window->draw(spineSprite);
 		}
 
-		if (!m_isHelpHidden)
+		if (!m_sceneState.isHelpHidden)
 		{
 			m_window->draw(*m_helpText);
 		}
 
-		if (!m_isTextHidden)
+		if (!m_sceneState.isTextHidden)
 		{
 			m_window->draw(*m_msgText);
 		}
@@ -445,12 +445,12 @@ void CSfmlMainWindow::toggleTextColor()
 
 void CSfmlMainWindow::toggleTextVisibility()
 {
-	m_isTextHidden ^= true;
+	m_sceneState.isTextHidden ^= true;
 }
 void CSfmlMainWindow::toggleImageSync()
 {
-	m_isImageSynced ^= true;
-	if (m_isImageSynced)
+	m_sceneState.isImageSynced ^= true;
+	if (m_sceneState.isImageSynced)
 	{
 		checkAnimationTrack();
 	}
@@ -542,7 +542,7 @@ void CSfmlMainWindow::shiftAnimation()
 	{
 		m_sfmlSpinePlayer->shiftAnimation();
 	}
-	else if (!m_isImageSynced)
+	else if (!m_sceneState.isImageSynced)
 	{
 		if (++m_nLastAnimationIndex >= m_animationNames.size())
 		{

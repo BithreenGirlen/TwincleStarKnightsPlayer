@@ -40,10 +40,20 @@ private:
 	{
 		bool toBeMoved = false;
 	};
+
 	struct WindowStyle
 	{
 		bool toFitToMonitorHeight;
 	};
+
+	struct SceneState
+	{
+		bool isTextHidden = false;
+		bool isImageSynced = true;
+
+		bool isHelpHidden = false;
+	};
+
 	struct MonitorInfo
 	{
 		sf::Vector2i position;
@@ -55,6 +65,7 @@ private:
 	MouseState m_mouseState;
 	WindowState m_windowState;
 	WindowStyle m_windowStyle;
+	SceneState m_sceneState;
 
 	std::unique_ptr<CSfmlSpinePlayer> m_sfmlSpinePlayer;
 	sf::Clock m_spineClock;
@@ -80,10 +91,7 @@ private:
 
 	std::vector<adv::TextDatum> m_textData;
 	size_t m_nTextIndex = 0;
-	bool m_isTextHidden = false;
-	bool m_isImageSynced = true;
 
-	bool m_isHelpHidden = false;
 	std::unique_ptr<sf::Text> m_helpText;
 
 	std::vector<std::string> m_animationNames;
